@@ -1,6 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import {
+  isAuthRoute,
+  isOnboardingRoute,
+  isPublicRoute,
+} from "@/lib/auth/routes";
 import { getSupabasePublishableKey, getSupabaseUrl } from "@/lib/env";
 import type { Database } from "@/types/supabase";
 
@@ -34,7 +39,52 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const pathname = request.nextUrl.pathname;
+
+  if (isPublicRoute(pathname)) {
+    if (user && isAuthRoute(pathname)) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/dashboard";
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    return supabaseResponse;
+  }
+
+  if (!user) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/login";
+    redirectUrl.searchParams.set("next", pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const hasProfile = Boolean(profile);
+
+  if (
+    !hasProfile &&
+    !isOnboardingRoute(pathname) &&
+    !pathname.startsWith("/mfa/")
+  ) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/onboarding/create-org";
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  if (hasProfile && isOnboardingRoute(pathname)) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/dashboard";
+    return NextResponse.redirect(redirectUrl);
+  }
 
   return supabaseResponse;
 }
