@@ -1,0 +1,1 @@
+-- Seed data for Pulse (applied via supabase db push / remote seed in Milestone 1)
