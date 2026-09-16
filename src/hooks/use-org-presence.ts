@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { dedupePresenceMembers } from "@/lib/realtime/dedupe-presence-members";
+import { removeExistingChannel } from "@/lib/realtime/postgres-changes-channel";
 import { createClient } from "@/lib/supabase/client";
 
 export type PresenceMember = {
@@ -28,6 +30,7 @@ export function useOrgPresence(
   useEffect(() => {
     const supabase = createClient();
     const channelName = `org-presence:${orgId}`;
+    removeExistingChannel(supabase, channelName);
 
     const channel = supabase.channel(channelName, {
       config: { presence: { key: currentUser.userId } },
@@ -36,14 +39,16 @@ export function useOrgPresence(
     channel
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState<PresencePayload>();
-        const onlineMembers = Object.values(state)
-          .flat()
-          .map((presence) => ({
-            userId: presence.userId,
-            displayName: presence.displayName,
-            orgRole: presence.orgRole,
-            onlineAt: presence.onlineAt,
-          }));
+        const onlineMembers = dedupePresenceMembers(
+          Object.values(state)
+            .flat()
+            .map((presence) => ({
+              userId: presence.userId,
+              displayName: presence.displayName,
+              orgRole: presence.orgRole,
+              onlineAt: presence.onlineAt,
+            })),
+        );
 
         setMembers(onlineMembers);
       })

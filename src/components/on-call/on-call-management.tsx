@@ -14,6 +14,7 @@ import { FormMessage } from "@/components/auth/form-message";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormSelectField } from "@/components/ui/form-select-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { rotationTypes } from "@/schemas/on-call";
@@ -30,8 +31,10 @@ type Profile = Pick<
 
 const initialState: ActionState = {};
 
-const selectClassName =
-  "flex h-9 w-full rounded-md border border-input bg-input px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
+const rotationTypeOptions = rotationTypes.map((type) => ({
+  value: type,
+  label: type.charAt(0).toUpperCase() + type.slice(1),
+}));
 
 export function OnCallManagement({
   rotations,
@@ -47,6 +50,11 @@ export function OnCallManagement({
     initialState,
   );
   const [isUpdating, startTransition] = useTransition();
+
+  const memberOptions = members.map((member) => ({
+    value: member.id,
+    label: member.display_name,
+  }));
 
   return (
     <div className="space-y-6">
@@ -68,21 +76,13 @@ export function OnCallManagement({
               <Label htmlFor="name">Rotation name</Label>
               <Input id="name" name="name" required placeholder="Primary on-call" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="rotationType">Type</Label>
-              <select
-                id="rotationType"
-                name="rotationType"
-                defaultValue="weekly"
-                className={selectClassName}
-              >
-                {rotationTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FormSelectField
+              id="rotationType"
+              name="rotationType"
+              label="Type"
+              options={rotationTypeOptions}
+              defaultValue="weekly"
+            />
             <div className="md:col-span-3">
               <FormMessage
                 error={rotationState.error}
@@ -108,7 +108,7 @@ export function OnCallManagement({
             key={rotation.id}
             rotation={rotation}
             slots={slots.filter((slot) => slot.rotation_id === rotation.id)}
-            members={members}
+            memberOptions={memberOptions}
             isUpdating={isUpdating}
             onSetActive={() => {
               startTransition(async () => {
@@ -130,14 +130,14 @@ export function OnCallManagement({
 function RotationCard({
   rotation,
   slots,
-  members,
+  memberOptions,
   isUpdating,
   onSetActive,
   onDelete,
 }: {
   rotation: Rotation;
   slots: Slot[];
-  members: Profile[];
+  memberOptions: { value: string; label: string }[];
   isUpdating: boolean;
   onSetActive: () => void;
   onDelete: () => void;
@@ -198,22 +198,14 @@ function RotationCard({
 
         <form action={slotAction} className="grid gap-4 border-t border-border pt-4 md:grid-cols-2">
           <input type="hidden" name="rotationId" value={rotation.id} />
-          <div className="space-y-2">
-            <Label htmlFor={`user-${rotation.id}`}>Member</Label>
-            <select
-              id={`user-${rotation.id}`}
-              name="userId"
-              required
-              className={selectClassName}
-            >
-              <option value="">Select member</option>
-              {members.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.display_name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <FormSelectField
+            id={`user-${rotation.id}`}
+            name="userId"
+            label="Member"
+            options={memberOptions}
+            placeholder="Select member"
+            required
+          />
           <div className="space-y-2">
             <Label htmlFor={`start-${rotation.id}`}>Start</Label>
             <Input

@@ -3,17 +3,9 @@
 import { format } from "date-fns";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useRealtimeTimeline, type TimelineEntry } from "@/hooks/use-realtime-timeline";
+import type { TimelineEntry } from "@/hooks/use-realtime-timeline";
 
-export function WarRoomTimeline({
-  incidentId,
-  initialEntries,
-}: {
-  incidentId: string;
-  initialEntries: TimelineEntry[];
-}) {
-  const { entries } = useRealtimeTimeline(incidentId, initialEntries);
-
+export function WarRoomTimeline({ entries }: { entries: TimelineEntry[] }) {
   return (
     <Card className="flex h-full flex-col">
       <CardHeader>
@@ -34,7 +26,9 @@ export function WarRoomTimeline({
                 <time className="font-mono">
                   {format(new Date(entry.created_at), "HH:mm:ss")}
                 </time>
-                <span className="uppercase tracking-wide">{entry.entry_type.replaceAll("_", " ")}</span>
+                <span className="uppercase tracking-wide">
+                  {entry.entry_type.replaceAll("_", " ")}
+                </span>
                 {entry.actor?.display_name ? (
                   <span>· {entry.actor.display_name}</span>
                 ) : null}

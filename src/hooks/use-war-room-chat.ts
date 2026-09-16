@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 import { sendChatMessageAction } from "@/app/actions/incidents";
+import { removeExistingChannel } from "@/lib/realtime/postgres-changes-channel";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types/supabase";
 
@@ -57,6 +58,7 @@ export function useWarRoomChat(
   useEffect(() => {
     const supabase = createClient();
     const channelName = `war-room:${incidentId}`;
+    removeExistingChannel(supabase, channelName);
 
     const channel = supabase
       .channel(channelName, {

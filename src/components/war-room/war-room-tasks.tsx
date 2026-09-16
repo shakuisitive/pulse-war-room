@@ -7,9 +7,13 @@ import { FormMessage } from "@/components/auth/form-message";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  FormSelectField,
+  UNASSIGNED_SELECT_VALUE,
+} from "@/components/ui/form-select-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRealtimeTasks, type Task } from "@/hooks/use-realtime-tasks";
+import type { Task } from "@/hooks/use-realtime-tasks";
 import { taskStatuses } from "@/schemas/incident";
 import type { Database } from "@/types/supabase";
 
@@ -20,30 +24,34 @@ type Profile = Pick<
 
 const initialState: ActionState = {};
 
-const selectClassName =
-  "flex h-9 w-full rounded-md border border-input bg-input px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
-
 export function WarRoomTasks({
   incidentId,
-  initialTasks,
+  tasks,
   orgMembers,
   isCommander,
   currentUserId,
   canManageAssignedTasks,
 }: {
   incidentId: string;
-  initialTasks: Task[];
+  tasks: Task[];
   orgMembers: Profile[];
   isCommander: boolean;
   currentUserId: string;
   canManageAssignedTasks: boolean;
 }) {
-  const { tasks } = useRealtimeTasks(incidentId, initialTasks);
   const [createState, createAction, isCreatePending] = useActionState(
     createTaskAction,
     initialState,
   );
   const [isPending, startTransition] = useTransition();
+
+  const assigneeOptions = [
+    { value: UNASSIGNED_SELECT_VALUE, label: "Unassigned" },
+    ...orgMembers.map((member) => ({
+      value: member.id,
+      label: member.display_name,
+    })),
+  ];
 
   return (
     <Card className="flex h-full flex-col">
@@ -58,17 +66,16 @@ export function WarRoomTasks({
               <Label htmlFor="task-title">New task</Label>
               <Input id="task-title" name="title" required placeholder="Verify rollback" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="assigneeId">Assign to</Label>
-              <select id="assigneeId" name="assigneeId" defaultValue="" className={selectClassName}>
-                <option value="">Unassigned</option>
-                {orgMembers.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.display_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FormSelectField
+              id="assigneeId"
+              name="assigneeId"
+              label="Assign to"
+              options={assigneeOptions}
+              defaultValue={UNASSIGNED_SELECT_VALUE}
+              mapValueToForm={(value) =>
+                value === UNASSIGNED_SELECT_VALUE ? "" : value
+              }
+            />
             <FormMessage error={createState.error} success={createState.success} />
             <Button type="submit" size="sm" disabled={isCreatePending}>
               Add task

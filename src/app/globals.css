@@ -162,6 +162,25 @@
   --radius: 0.5rem;
 }
 
+@layer components {
+  [data-slot="select-trigger"]:focus,
+  [data-slot="select-trigger"]:focus-visible,
+  [data-slot="select-trigger"][data-state="open"] {
+    outline: none;
+    box-shadow: none;
+  }
+
+  [data-slot="select-item"] {
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  [data-slot="select-item"][data-highlighted] {
+    background-color: var(--accent);
+    color: var(--accent-foreground);
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

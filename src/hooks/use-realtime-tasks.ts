@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
+import { subscribePostgresChanges } from "@/lib/realtime/postgres-changes-channel";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types/supabase";
 
@@ -27,7 +28,7 @@ async function fetchTasks(incidentId: string) {
 
 export function useRealtimeTasks(incidentId: string, initialData: Task[]) {
   const queryClient = useQueryClient();
-  const queryKey = ["tasks", incidentId];
+  const queryKey = ["tasks", incidentId] as const;
 
   const query = useQuery({
     queryKey,
@@ -37,24 +38,22 @@ export function useRealtimeTasks(incidentId: string, initialData: Task[]) {
 
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase
-      .channel(`tasks:${incidentId}`)
-      .on(
-        "postgres_changes",
-        {
+    const channel = subscribePostgresChanges(supabase, `tasks:${incidentId}`, [
+      {
+        filter: {
           event: "*",
           schema: "public",
           table: "tasks",
           filter: `incident_id=eq.${incidentId}`,
         },
-        () => {
+        callback: () => {
           void queryClient.invalidateQueries({ queryKey });
         },
-      )
-      .subscribe();
+      },
+    ]);
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [incidentId, queryClient]);
 

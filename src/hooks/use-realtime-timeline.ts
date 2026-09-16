@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
+import { subscribePostgresChanges } from "@/lib/realtime/postgres-changes-channel";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types/supabase";
 
@@ -31,7 +32,7 @@ export function useRealtimeTimeline(
   initialData: TimelineEntry[],
 ) {
   const queryClient = useQueryClient();
-  const queryKey = ["timeline", incidentId];
+  const queryKey = ["timeline", incidentId] as const;
 
   const query = useQuery({
     queryKey,
@@ -41,24 +42,22 @@ export function useRealtimeTimeline(
 
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase
-      .channel(`timeline:${incidentId}`)
-      .on(
-        "postgres_changes",
-        {
+    const channel = subscribePostgresChanges(supabase, `timeline:${incidentId}`, [
+      {
+        filter: {
           event: "INSERT",
           schema: "public",
           table: "timeline_entries",
           filter: `incident_id=eq.${incidentId}`,
         },
-        () => {
+        callback: () => {
           void queryClient.invalidateQueries({ queryKey });
         },
-      )
-      .subscribe();
+      },
+    ]);
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [incidentId, queryClient]);
 

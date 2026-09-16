@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { dedupePresenceMembers } from "@/lib/realtime/dedupe-presence-members";
+import { removeExistingChannel } from "@/lib/realtime/postgres-changes-channel";
 import { createClient } from "@/lib/supabase/client";
 
 export type WarRoomPresenceMember = {
@@ -27,6 +29,7 @@ export function useWarRoomPresence(
   useEffect(() => {
     const supabase = createClient();
     const channelName = `war-room-presence:${incidentId}`;
+    removeExistingChannel(supabase, channelName);
 
     const channel = supabase.channel(channelName, {
       config: { presence: { key: currentUser.userId } },
@@ -35,14 +38,16 @@ export function useWarRoomPresence(
     channel
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState<PresencePayload>();
-        const onlineMembers = Object.values(state)
-          .flat()
-          .map((presence) => ({
-            userId: presence.userId,
-            displayName: presence.displayName,
-            incidentRole: presence.incidentRole,
-            onlineAt: presence.onlineAt,
-          }));
+        const onlineMembers = dedupePresenceMembers(
+          Object.values(state)
+            .flat()
+            .map((presence) => ({
+              userId: presence.userId,
+              displayName: presence.displayName,
+              incidentRole: presence.incidentRole,
+              onlineAt: presence.onlineAt,
+            })),
+        );
 
         setMembers(onlineMembers);
       })

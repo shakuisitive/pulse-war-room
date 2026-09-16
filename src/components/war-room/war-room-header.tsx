@@ -6,20 +6,24 @@ import {
   updateIncidentSeverityAction,
   updateIncidentStatusAction,
 } from "@/app/actions/incidents";
+import { IncidentDuration } from "@/components/incidents/incident-duration";
+import { LiveSlaIndicator } from "@/components/incidents/live-sla-indicator";
 import { SeverityBadge } from "@/components/incidents/severity-badge";
-import { SlaIndicator } from "@/components/incidents/sla-indicator";
 import { StatusBadge } from "@/components/incidents/status-badge";
 import { Button } from "@/components/ui/button";
-import { formatDuration, getSlaState } from "@/lib/incidents/sla";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { getNextStatuses } from "@/lib/incidents/status-transitions";
 import type { DefaultOrgSettings } from "@/schemas/organization";
 import { severityLevels } from "@/schemas/incident";
 import type { Database } from "@/types/supabase";
 
 type Incident = Database["public"]["Tables"]["incidents"]["Row"];
-
-const selectClassName =
-  "flex h-9 rounded-md border border-input bg-input px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
 
 export function WarRoomHeader({
   incident,
@@ -35,15 +39,6 @@ export function WarRoomHeader({
   isReadOnly: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
-  const slaState = getSlaState({
-    severity: incident.severity,
-    status: incident.status,
-    declaredAt: incident.declared_at,
-    acknowledgedAt: incident.acknowledged_at,
-    resolvedAt: incident.resolved_at,
-    slaThresholds,
-  });
-
   const nextStatuses = getNextStatuses(incident.status);
 
   return (
@@ -53,7 +48,14 @@ export function WarRoomHeader({
           <div className="flex flex-wrap items-center gap-2">
             <SeverityBadge severity={incident.severity} />
             <StatusBadge status={incident.status} />
-            <SlaIndicator state={slaState} />
+            <LiveSlaIndicator
+              severity={incident.severity}
+              status={incident.status}
+              declaredAt={incident.declared_at}
+              acknowledgedAt={incident.acknowledged_at}
+              resolvedAt={incident.resolved_at}
+              slaThresholds={slaThresholds}
+            />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">{incident.title}</h1>
           <p className="max-w-3xl text-sm text-muted-foreground">
@@ -63,33 +65,35 @@ export function WarRoomHeader({
             <span>
               Commander: <span className="text-foreground">{commanderName ?? "Unassigned"}</span>
             </span>
-            <span className="font-mono">
-              Open for {formatDuration(incident.declared_at, incident.resolved_at)}
-            </span>
+            <IncidentDuration
+              declaredAt={incident.declared_at}
+              resolvedAt={incident.resolved_at}
+            />
           </div>
         </div>
 
         {isCommander && !isReadOnly ? (
           <div className="flex flex-col gap-2 sm:flex-row">
-            <select
-              className={selectClassName}
+            <Select
               value={incident.severity}
               disabled={isPending}
-              onChange={(event) => {
+              onValueChange={(value) => {
                 startTransition(async () => {
-                  await updateIncidentSeverityAction(
-                    incident.id,
-                    event.target.value,
-                  );
+                  await updateIncidentSeverityAction(incident.id, value);
                 });
               }}
             >
-              {severityLevels.map((level) => (
-                <option key={level} value={level}>
-                  {level.toUpperCase()}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {severityLevels.map((level) => (
+                  <SelectItem key={level} value={level}>
+                    {level.toUpperCase()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
             {nextStatuses.map((status) => (
               <Button

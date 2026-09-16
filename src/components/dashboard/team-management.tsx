@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormSelect, FormSelectField } from "@/components/ui/form-select-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { Database } from "@/types/supabase";
@@ -24,8 +25,10 @@ type Member = Pick<
 
 const initialState: ActionState = {};
 
-const selectClassName =
-  "flex h-9 w-full rounded-md border border-input bg-input px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
+const orgRoleOptions = [
+  { value: "admin", label: "Admin" },
+  { value: "member", label: "Member" },
+];
 
 export function TeamManagement({
   members,
@@ -61,18 +64,13 @@ export function TeamManagement({
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" name="email" type="email" required />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="orgRole">Role</Label>
-                <select
-                  id="orgRole"
-                  name="orgRole"
-                  defaultValue="member"
-                  className={selectClassName}
-                >
-                  <option value="admin">Admin</option>
-                  <option value="member">Member</option>
-                </select>
-              </div>
+              <FormSelectField
+                id="orgRole"
+                name="orgRole"
+                label="Role"
+                options={orgRoleOptions}
+                defaultValue="member"
+              />
               <div className="md:col-span-3">
                 <FormMessage
                   error={inviteState.error}
@@ -141,14 +139,14 @@ function MemberRow({
         <div className="flex flex-wrap items-center gap-2">
           <form action={roleAction} className="flex items-center gap-2">
             <input type="hidden" name="userId" value={member.id} />
-            <select
+            <FormSelect
+              id={`orgRole-${member.id}`}
               name="orgRole"
+              options={orgRoleOptions}
               defaultValue={member.org_role}
-              className={selectClassName}
-            >
-              <option value="admin">Admin</option>
-              <option value="member">Member</option>
-            </select>
+              triggerClassName="w-[140px]"
+              size="sm"
+            />
             <Button type="submit" variant="outline" size="sm">
               Update
             </Button>

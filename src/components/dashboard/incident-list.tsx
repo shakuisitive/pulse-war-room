@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
 
+import { LiveSlaIndicator } from "@/components/incidents/live-sla-indicator";
+import { RelativeTime } from "@/components/incidents/relative-time";
 import { SeverityBadge } from "@/components/incidents/severity-badge";
-import { SlaIndicator } from "@/components/incidents/sla-indicator";
 import { StatusBadge } from "@/components/incidents/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRealtimeIncidents, type IncidentSummary } from "@/hooks/use-realtime-incidents";
-import { getSlaState } from "@/lib/incidents/sla";
 import type { DefaultOrgSettings } from "@/schemas/organization";
 
 export function IncidentList({
@@ -81,14 +80,10 @@ function IncidentSection({
               return null;
             }
 
-            const slaState = getSlaState({
-              severity: incident.severity,
-              status: incident.status,
-              declaredAt: incident.declared_at ?? incident.created_at ?? new Date().toISOString(),
-              acknowledgedAt: incident.acknowledged_at,
-              resolvedAt: incident.resolved_at,
-              slaThresholds,
-            });
+            const declaredAt =
+              incident.declared_at ??
+              incident.created_at ??
+              new Date(0).toISOString();
 
             return (
               <Link key={incident.id} href={`/incidents/${incident.id}`}>
@@ -98,15 +93,19 @@ function IncidentSection({
                       <div className="flex flex-wrap items-center gap-2">
                         <SeverityBadge severity={incident.severity} />
                         <StatusBadge status={incident.status} />
-                        <SlaIndicator state={slaState} />
+                        <LiveSlaIndicator
+                          severity={incident.severity}
+                          status={incident.status}
+                          declaredAt={declaredAt}
+                          acknowledgedAt={incident.acknowledged_at}
+                          resolvedAt={incident.resolved_at}
+                          slaThresholds={slaThresholds}
+                        />
                       </div>
                       <p className="font-medium text-foreground">{incident.title}</p>
                       <p className="text-sm text-muted-foreground">
                         Commander: {incident.commander_name ?? "Unassigned"} ·{" "}
-                        {formatDistanceToNow(
-                          new Date(incident.declared_at ?? incident.created_at ?? Date.now()),
-                          { addSuffix: true },
-                        )}
+                        <RelativeTime dateIso={declaredAt} addSuffix />
                       </p>
                     </div>
                     <div className="text-sm text-muted-foreground">

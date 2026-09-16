@@ -3,24 +3,26 @@
 import { format } from "date-fns";
 import { useRef, useState, useTransition } from "react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { useWarRoomChat, type ChatMessage } from "@/hooks/use-war-room-chat";
+import type { ChatMessage } from "@/hooks/use-war-room-chat";
 
 export function WarRoomChat({
-  incidentId,
-  initialMessages,
-  currentUser,
+  messages,
+  isSending,
+  typingUsers,
+  sendMessage,
+  setTyping,
   canPost,
 }: {
-  incidentId: string;
-  initialMessages: ChatMessage[];
-  currentUser: { userId: string; displayName: string };
+  messages: ChatMessage[];
+  isSending: boolean;
+  typingUsers: string[];
+  sendMessage: (content: string) => Promise<{ error?: string }>;
+  setTyping: (isTyping: boolean) => Promise<void>;
   canPost: boolean;
 }) {
-  const { messages, isSending, typingUsers, sendMessage, setTyping } =
-    useWarRoomChat(incidentId, initialMessages, currentUser);
   const [content, setContent] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();

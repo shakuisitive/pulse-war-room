@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 
 import { createEvidenceRecordAction } from "@/app/actions/incidents";
 import { Button } from "@/components/ui/button";
@@ -15,45 +15,16 @@ type Evidence = Database["public"]["Tables"]["evidence"]["Row"];
 export function WarRoomEvidence({
   incidentId,
   orgId,
-  initialEvidence,
+  evidence,
   canUpload,
 }: {
   incidentId: string;
   orgId: string;
-  initialEvidence: Evidence[];
+  evidence: Evidence[];
   canUpload: boolean;
 }) {
-  const [evidence, setEvidence] = useState(initialEvidence);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, startTransition] = useTransition();
-
-  useEffect(() => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`evidence:${incidentId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "evidence",
-          filter: `incident_id=eq.${incidentId}`,
-        },
-        (payload) => {
-          const row = payload.new as Evidence;
-          setEvidence((current) =>
-            current.some((item) => item.id === row.id)
-              ? current
-              : [...current, row],
-          );
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [incidentId]);
 
   const handleUpload = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,25 +60,7 @@ export function WarRoomEvidence({
         const result = await createEvidenceRecordAction({}, formData);
         if (result.error) {
           setError(result.error);
-          return;
         }
-
-        setEvidence((current) => [
-          ...current,
-          {
-            id: crypto.randomUUID(),
-            incident_id: incidentId,
-            org_id: orgId,
-            uploaded_by: "",
-            file_name: file.name,
-            storage_path: storagePath,
-            file_type: file.type,
-            file_size: file.size,
-            caption: null,
-            is_stakeholder_visible: false,
-            created_at: new Date().toISOString(),
-          },
-        ]);
       });
     },
     [incidentId, orgId],

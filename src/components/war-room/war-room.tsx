@@ -1,6 +1,8 @@
 "use client";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState } from "react";
+
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WarRoomChat } from "@/components/war-room/war-room-chat";
 import { WarRoomEvidence } from "@/components/war-room/war-room-evidence";
 import { WarRoomHeader } from "@/components/war-room/war-room-header";
@@ -8,9 +10,13 @@ import { WarRoomParticipants } from "@/components/war-room/war-room-participants
 import { WarRoomPresence } from "@/components/war-room/war-room-presence";
 import { WarRoomTasks } from "@/components/war-room/war-room-tasks";
 import { WarRoomTimeline } from "@/components/war-room/war-room-timeline";
-import type { ChatMessage } from "@/hooks/use-war-room-chat";
+import { useRealtimeEvidence } from "@/hooks/use-realtime-evidence";
+import { useRealtimeTasks } from "@/hooks/use-realtime-tasks";
+import { useRealtimeTimeline } from "@/hooks/use-realtime-timeline";
+import { useWarRoomChat, type ChatMessage } from "@/hooks/use-war-room-chat";
 import type { Task } from "@/hooks/use-realtime-tasks";
 import type { TimelineEntry } from "@/hooks/use-realtime-timeline";
+import { cn } from "@/lib/utils";
 import type { DefaultOrgSettings } from "@/schemas/organization";
 import type { Database } from "@/types/supabase";
 
@@ -23,6 +29,12 @@ type Profile = Pick<
   Database["public"]["Tables"]["profiles"]["Row"],
   "id" | "display_name"
 >;
+
+type MobilePanel = "timeline" | "chat" | "tasks" | "more";
+
+function mobilePanelClass(activePanel: MobilePanel, panel: MobilePanel) {
+  return cn(activePanel !== panel && "hidden", "lg:block");
+}
 
 export function WarRoom({
   incident,
@@ -51,6 +63,8 @@ export function WarRoom({
   userIncidentRole: Database["public"]["Enums"]["incident_role"] | null;
   isOrgAdmin: boolean;
 }) {
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>("timeline");
+
   const isCommander = userIncidentRole === "commander" || isOrgAdmin;
   const isResponder = userIncidentRole === "responder";
   const isObserver = userIncidentRole === "observer";
@@ -58,6 +72,11 @@ export function WarRoom({
   const canPostChat = (isCommander || isResponder) && !isReadOnly;
   const canUploadEvidence = (isCommander || isResponder) && !isReadOnly;
   const presenceRole = userIncidentRole ?? (isOrgAdmin ? "commander" : "observer");
+
+  const { entries } = useRealtimeTimeline(incident.id, timelineEntries);
+  const { tasks: liveTasks } = useRealtimeTasks(incident.id, tasks);
+  const { evidence: liveEvidence } = useRealtimeEvidence(incident.id, evidence);
+  const chat = useWarRoomChat(incident.id, chatMessages, currentUser);
 
   return (
     <div className="space-y-6">
@@ -78,89 +97,63 @@ export function WarRoom({
         }}
       />
 
-      <div className="hidden gap-4 lg:grid lg:grid-cols-[1.2fr_1fr] xl:grid-cols-[1.3fr_1fr_0.9fr]">
-        <WarRoomTimeline
-          incidentId={incident.id}
-          initialEntries={timelineEntries}
-        />
-        <WarRoomChat
-          incidentId={incident.id}
-          initialMessages={chatMessages}
-          currentUser={currentUser}
-          canPost={canPostChat}
-        />
-        <div className="space-y-4">
-          <WarRoomTasks
-            incidentId={incident.id}
-            initialTasks={tasks}
-            orgMembers={orgMembers}
-            isCommander={isCommander && !isReadOnly}
-            currentUserId={currentUser.userId}
-            canManageAssignedTasks={isResponder && !isReadOnly}
-          />
-          <WarRoomParticipants
-            incidentId={incident.id}
-            participants={participants}
-            orgMembers={orgMembers}
-            isCommander={isCommander && !isReadOnly}
-          />
-          <WarRoomEvidence
-            incidentId={incident.id}
-            orgId={incident.org_id}
-            initialEvidence={evidence}
-            canUpload={canUploadEvidence}
-          />
-        </div>
-      </div>
+      <Tabs
+        value={mobilePanel}
+        onValueChange={(value) => setMobilePanel(value as MobilePanel)}
+        className="space-y-4"
+      >
+        <TabsList className="grid w-full grid-cols-4 lg:hidden">
+          <TabsTrigger value="timeline">Timeline</TabsTrigger>
+          <TabsTrigger value="chat">Chat</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="more">More</TabsTrigger>
+        </TabsList>
 
-      <div className="lg:hidden">
-        <Tabs defaultValue="timeline">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="timeline">Timeline</TabsTrigger>
-            <TabsTrigger value="chat">Chat</TabsTrigger>
-            <TabsTrigger value="tasks">Tasks</TabsTrigger>
-            <TabsTrigger value="more">More</TabsTrigger>
-          </TabsList>
-          <TabsContent value="timeline" className="mt-4">
-            <WarRoomTimeline
-              incidentId={incident.id}
-              initialEntries={timelineEntries}
-            />
-          </TabsContent>
-          <TabsContent value="chat" className="mt-4">
+        <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr] xl:grid-cols-[1.3fr_1fr_0.9fr]">
+          <section className={mobilePanelClass(mobilePanel, "timeline")}>
+            <WarRoomTimeline entries={entries} />
+          </section>
+
+          <section className={mobilePanelClass(mobilePanel, "chat")}>
             <WarRoomChat
-              incidentId={incident.id}
-              initialMessages={chatMessages}
-              currentUser={currentUser}
+              messages={chat.messages}
+              isSending={chat.isSending}
+              typingUsers={chat.typingUsers}
+              sendMessage={chat.sendMessage}
+              setTyping={chat.setTyping}
               canPost={canPostChat}
             />
-          </TabsContent>
-          <TabsContent value="tasks" className="mt-4">
-            <WarRoomTasks
-              incidentId={incident.id}
-              initialTasks={tasks}
-              orgMembers={orgMembers}
-              isCommander={isCommander && !isReadOnly}
-              currentUserId={currentUser.userId}
-              canManageAssignedTasks={isResponder && !isReadOnly}
-            />
-          </TabsContent>
-          <TabsContent value="more" className="mt-4 space-y-4">
-            <WarRoomParticipants
-              incidentId={incident.id}
-              participants={participants}
-              orgMembers={orgMembers}
-              isCommander={isCommander && !isReadOnly}
-            />
-            <WarRoomEvidence
-              incidentId={incident.id}
-              orgId={incident.org_id}
-              initialEvidence={evidence}
-              canUpload={canUploadEvidence}
-            />
-          </TabsContent>
-        </Tabs>
-      </div>
+          </section>
+
+          <section className="space-y-4">
+            <div className={mobilePanelClass(mobilePanel, "tasks")}>
+              <WarRoomTasks
+                incidentId={incident.id}
+                tasks={liveTasks}
+                orgMembers={orgMembers}
+                isCommander={isCommander && !isReadOnly}
+                currentUserId={currentUser.userId}
+                canManageAssignedTasks={isResponder && !isReadOnly}
+              />
+            </div>
+
+            <div className={mobilePanelClass(mobilePanel, "more")}>
+              <WarRoomParticipants
+                incidentId={incident.id}
+                participants={participants}
+                orgMembers={orgMembers}
+                isCommander={isCommander && !isReadOnly}
+              />
+              <WarRoomEvidence
+                incidentId={incident.id}
+                orgId={incident.org_id}
+                evidence={liveEvidence}
+                canUpload={canUploadEvidence}
+              />
+            </div>
+          </section>
+        </div>
+      </Tabs>
 
       {isObserver ? (
         <p className="text-sm text-muted-foreground">

@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { FormSelectField } from "@/components/ui/form-select-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,8 +21,10 @@ import { severityLevels } from "@/schemas/incident";
 
 const initialState: ActionState = {};
 
-const selectClassName =
-  "flex h-9 w-full rounded-md border border-input bg-input px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
+const severityOptions = severityLevels.map((level) => ({
+  value: level,
+  label: level.toUpperCase(),
+}));
 
 export function DeclareIncidentDialog() {
   const [open, setOpen] = useState(false);
@@ -60,21 +63,13 @@ export function DeclareIncidentDialog() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="severity">Severity</Label>
-            <select
-              id="severity"
-              name="severity"
-              defaultValue="sev2"
-              className={selectClassName}
-            >
-              {severityLevels.map((level) => (
-                <option key={level} value={level}>
-                  {level.toUpperCase()}
-                </option>
-              ))}
-            </select>
-          </div>
+          <FormSelectField
+            id="severity"
+            name="severity"
+            label="Severity"
+            options={severityOptions}
+            defaultValue="sev2"
+          />
 
           <FormMessage error={state.error} success={state.success} />
 

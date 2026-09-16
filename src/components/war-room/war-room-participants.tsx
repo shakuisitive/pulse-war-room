@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { FormSelectField } from "@/components/ui/form-select-field";
 import { incidentRoles } from "@/schemas/incident";
 import type { Database } from "@/types/supabase";
 
@@ -27,8 +27,10 @@ type Profile = Pick<
 
 const initialState: ActionState = {};
 
-const selectClassName =
-  "flex h-9 w-full rounded-md border border-input bg-input px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
+const incidentRoleOptions = incidentRoles.map((role) => ({
+  value: role,
+  label: role.charAt(0).toUpperCase() + role.slice(1),
+}));
 
 export function WarRoomParticipants({
   incidentId,
@@ -54,6 +56,11 @@ export function WarRoomParticipants({
   const availableMembers = orgMembers.filter(
     (member) => !activeParticipantIds.has(member.id),
   );
+
+  const memberOptions = availableMembers.map((member) => ({
+    value: member.id,
+    label: member.display_name,
+  }));
 
   return (
     <Card>
@@ -115,32 +122,21 @@ export function WarRoomParticipants({
         {isCommander ? (
           <form action={formAction} className="space-y-3 border-t border-border pt-4">
             <input type="hidden" name="incidentId" value={incidentId} />
-            <div className="space-y-2">
-              <Label htmlFor="userId">Add participant</Label>
-              <select id="userId" name="userId" required className={selectClassName}>
-                <option value="">Select member</option>
-                {availableMembers.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.display_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="incidentRole">Role</Label>
-              <select
-                id="incidentRole"
-                name="incidentRole"
-                defaultValue="responder"
-                className={selectClassName}
-              >
-                {incidentRoles.map((role) => (
-                  <option key={role} value={role}>
-                    {role}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FormSelectField
+              id="userId"
+              name="userId"
+              label="Add participant"
+              options={memberOptions}
+              placeholder="Select member"
+              required
+            />
+            <FormSelectField
+              id="incidentRole"
+              name="incidentRole"
+              label="Role"
+              options={incidentRoleOptions}
+              defaultValue="responder"
+            />
             <FormMessage error={state.error} success={state.success} />
             <Button type="submit" size="sm" disabled={isPending}>
               Add to war room
