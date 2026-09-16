@@ -9,8 +9,10 @@ import {
 import { FormMessage } from "@/components/auth/form-message";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormCheckbox } from "@/components/ui/form-checkbox-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NumberInput } from "@/components/ui/number-input";
 import type { OrgSettingsInput } from "@/schemas/organization";
 
 const initialState: ActionState = {};
@@ -50,15 +52,13 @@ export function OrgSettingsForm({
               required
             />
           </div>
-          <label className="flex items-center gap-2 text-sm md:col-span-2">
-            <input
-              type="checkbox"
-              name="requireMfa"
-              defaultChecked={initialValues.requireMfa}
-              className="size-4 rounded border border-input"
-            />
-            Require MFA for all organization members
-          </label>
+          <FormCheckbox
+            id="requireMfa"
+            name="requireMfa"
+            label="Require MFA for all organization members"
+            defaultChecked={initialValues.requireMfa}
+            className="md:col-span-2"
+          />
         </CardContent>
       </Card>
 
@@ -72,10 +72,9 @@ export function OrgSettingsForm({
               <p className="font-medium uppercase">{severity}</p>
               <div className="space-y-2">
                 <Label htmlFor={`${severity}Ack`}>Acknowledge within</Label>
-                <Input
+                <NumberInput
                   id={`${severity}Ack`}
                   name={`${severity}Ack`}
-                  type="number"
                   min={1}
                   defaultValue={
                     initialValues.slaThresholds[severity].acknowledgeMinutes
@@ -85,10 +84,9 @@ export function OrgSettingsForm({
               </div>
               <div className="space-y-2">
                 <Label htmlFor={`${severity}Resolve`}>Resolve within</Label>
-                <Input
+                <NumberInput
                   id={`${severity}Resolve`}
                   name={`${severity}Resolve`}
-                  type="number"
                   min={1}
                   defaultValue={
                     initialValues.slaThresholds[severity].resolveMinutes

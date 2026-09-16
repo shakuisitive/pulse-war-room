@@ -9,6 +9,7 @@ import {
 import { FormMessage } from "@/components/auth/form-message";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormCheckbox } from "@/components/ui/form-checkbox-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ProfileInput } from "@/schemas/organization";
@@ -53,28 +54,22 @@ export function ProfileForm({
           </div>
           <div className="space-y-2">
             <p className="text-sm font-medium">Notifications</p>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                name="emailEnabled"
-                defaultChecked={
-                  initialValues.notificationPreferences.emailEnabled
-                }
-                className="size-4 rounded border border-input"
-              />
-              Email notifications
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                name="inAppEnabled"
-                defaultChecked={
-                  initialValues.notificationPreferences.inAppEnabled
-                }
-                className="size-4 rounded border border-input"
-              />
-              In-app notifications
-            </label>
+            <FormCheckbox
+              id="emailEnabled"
+              name="emailEnabled"
+              label="Email notifications"
+              defaultChecked={
+                initialValues.notificationPreferences.emailEnabled
+              }
+            />
+            <FormCheckbox
+              id="inAppEnabled"
+              name="inAppEnabled"
+              label="In-app notifications"
+              defaultChecked={
+                initialValues.notificationPreferences.inAppEnabled
+              }
+            />
           </div>
           <FormMessage error={state.error} success={state.success} />
           <Button disabled={isPending}>

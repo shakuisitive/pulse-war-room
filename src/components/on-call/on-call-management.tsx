@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormSelectField } from "@/components/ui/form-select-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NumberInput } from "@/components/ui/number-input";
 import { rotationTypes } from "@/schemas/on-call";
 import type { Database } from "@/types/supabase";
 
@@ -226,10 +227,9 @@ function RotationCard({
           </div>
           <div className="space-y-2">
             <Label htmlFor={`day-${rotation.id}`}>Day of week (optional)</Label>
-            <Input
+            <NumberInput
               id={`day-${rotation.id}`}
               name="dayOfWeek"
-              type="number"
               min={0}
               max={6}
               placeholder="0 = Sunday"
