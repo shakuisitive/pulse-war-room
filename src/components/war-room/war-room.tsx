@@ -11,6 +11,7 @@ import { WarRoomPresence } from "@/components/war-room/war-room-presence";
 import { WarRoomTasks } from "@/components/war-room/war-room-tasks";
 import { WarRoomTimeline } from "@/components/war-room/war-room-timeline";
 import { useRealtimeEvidence } from "@/hooks/use-realtime-evidence";
+import { useRealtimeIncident } from "@/hooks/use-realtime-incident";
 import { useRealtimeTasks } from "@/hooks/use-realtime-tasks";
 import { useRealtimeTimeline } from "@/hooks/use-realtime-timeline";
 import { useWarRoomChat, type ChatMessage } from "@/hooks/use-war-room-chat";
@@ -65,23 +66,24 @@ export function WarRoom({
 }) {
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("timeline");
 
-  const isCommander = userIncidentRole === "commander" || isOrgAdmin;
-  const isResponder = userIncidentRole === "responder";
-  const isObserver = userIncidentRole === "observer";
-  const isReadOnly = incident.status === "resolved";
-  const canPostChat = (isCommander || isResponder) && !isReadOnly;
-  const canUploadEvidence = (isCommander || isResponder) && !isReadOnly;
-  const presenceRole = userIncidentRole ?? (isOrgAdmin ? "commander" : "observer");
-
+  const { incident: liveIncident } = useRealtimeIncident(incident.id, incident);
   const { entries } = useRealtimeTimeline(incident.id, timelineEntries);
   const { tasks: liveTasks } = useRealtimeTasks(incident.id, tasks);
   const { evidence: liveEvidence } = useRealtimeEvidence(incident.id, evidence);
   const chat = useWarRoomChat(incident.id, chatMessages, currentUser);
 
+  const isCommander = userIncidentRole === "commander" || isOrgAdmin;
+  const isResponder = userIncidentRole === "responder";
+  const isObserver = userIncidentRole === "observer";
+  const isReadOnly = liveIncident.status === "resolved";
+  const canPostChat = (isCommander || isResponder) && !isReadOnly;
+  const canUploadEvidence = (isCommander || isResponder) && !isReadOnly;
+  const presenceRole = userIncidentRole ?? (isOrgAdmin ? "commander" : "observer");
+
   return (
     <div className="space-y-6">
       <WarRoomHeader
-        incident={incident}
+        incident={liveIncident}
         commanderName={commanderName}
         slaThresholds={slaThresholds}
         isCommander={isCommander}

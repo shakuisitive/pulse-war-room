@@ -57,6 +57,11 @@ export const updateTaskSchema = z.object({
   assigneeId: z.uuid().nullable().optional(),
 });
 
+export const deleteTaskSchema = z.object({
+  taskId: z.uuid(),
+  incidentId: z.uuid(),
+});
+
 export const sendChatMessageSchema = z.object({
   incidentId: z.uuid(),
   content: z.string().trim().min(1, "Message cannot be empty").max(4000),

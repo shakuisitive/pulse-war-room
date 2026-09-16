@@ -7,7 +7,9 @@ import { createClient } from "@/lib/supabase/server";
 import {
   createOnCallSlotSchema,
   createRotationSchema,
+  deleteOnCallSlotSchema,
   setActiveRotationSchema,
+  updateRotationSchema,
 } from "@/schemas/on-call";
 import type { ActionState } from "@/app/actions/organization";
 
@@ -108,6 +110,44 @@ export async function createOnCallSlotAction(
   return { success: "On-call slot added." };
 }
 
+export async function updateRotationAction(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { session, error: authError } = await requireAdmin();
+
+  if (authError || !session) {
+    return { error: authError ?? "Unauthorized" };
+  }
+
+  const parsed = updateRotationSchema.safeParse({
+    rotationId: formData.get("rotationId"),
+    name: formData.get("name"),
+    rotationType: formData.get("rotationType"),
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("on_call_rotations")
+    .update({
+      name: parsed.data.name,
+      rotation_type: parsed.data.rotationType,
+    })
+    .eq("id", parsed.data.rotationId)
+    .eq("org_id", session.organization.id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/on-call");
+  return { success: "Rotation updated." };
+}
+
 export async function setActiveRotationAction(
   rotationId: string,
 ): Promise<ActionState> {
@@ -146,6 +186,34 @@ export async function setActiveRotationAction(
 
   revalidatePath("/on-call");
   return { success: "Active rotation updated." };
+}
+
+export async function deleteOnCallSlotAction(slotId: string): Promise<ActionState> {
+  const { session, error: authError } = await requireAdmin();
+
+  if (authError || !session) {
+    return { error: authError ?? "Unauthorized" };
+  }
+
+  const parsed = deleteOnCallSlotSchema.safeParse({ slotId });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("on_call_slots")
+    .delete()
+    .eq("id", parsed.data.slotId)
+    .eq("org_id", session.organization.id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/on-call");
+  return { success: "Slot removed." };
 }
 
 export async function deleteRotationAction(rotationId: string): Promise<ActionState> {

@@ -2,7 +2,12 @@
 
 import { useActionState, useTransition } from "react";
 
-import { createTaskAction, updateTaskAction, type ActionState } from "@/app/actions/incidents";
+import {
+  createTaskAction,
+  deleteTaskAction,
+  updateTaskAction,
+  type ActionState,
+} from "@/app/actions/incidents";
 import { FormMessage } from "@/components/auth/form-message";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -104,9 +109,26 @@ export function WarRoomTasks({
                         {task.assignee?.display_name ?? "Unassigned"}
                       </p>
                     </div>
-                    <Badge variant="secondary" className="capitalize">
-                      {task.status.replaceAll("_", " ")}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="capitalize">
+                        {task.status.replaceAll("_", " ")}
+                      </Badge>
+                      {isCommander ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          disabled={isPending}
+                          onClick={() => {
+                            startTransition(async () => {
+                              await deleteTaskAction(task.id, incidentId);
+                            });
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
 
                   {canUpdate ? (

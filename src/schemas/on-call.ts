@@ -19,5 +19,16 @@ export const setActiveRotationSchema = z.object({
   rotationId: z.uuid(),
 });
 
+export const updateRotationSchema = z.object({
+  rotationId: z.uuid(),
+  name: z.string().trim().min(2, "Name is required").max(100),
+  rotationType: z.enum(rotationTypes),
+});
+
+export const deleteOnCallSlotSchema = z.object({
+  slotId: z.uuid(),
+});
+
 export type CreateRotationInput = z.infer<typeof createRotationSchema>;
 export type CreateOnCallSlotInput = z.infer<typeof createOnCallSlotSchema>;
+export type UpdateRotationInput = z.infer<typeof updateRotationSchema>;

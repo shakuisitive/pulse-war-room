@@ -10,6 +10,7 @@ import {
   addParticipantSchema,
   createTaskSchema,
   declareIncidentSchema,
+  deleteTaskSchema,
   evidenceMetadataSchema,
   removeParticipantSchema,
   sendChatMessageSchema,
@@ -301,6 +302,38 @@ export async function updateTaskAction(
 
   revalidatePath(`/incidents/${parsed.data.incidentId}`);
   return { success: "Task updated." };
+}
+
+export async function deleteTaskAction(
+  taskId: string,
+  incidentId: string,
+): Promise<ActionState> {
+  const session = await getSessionContext();
+
+  if (!session) {
+    return { error: "You must be signed in." };
+  }
+
+  const parsed = deleteTaskSchema.safeParse({ taskId, incidentId });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("tasks")
+    .delete()
+    .eq("id", parsed.data.taskId)
+    .eq("incident_id", parsed.data.incidentId)
+    .eq("org_id", session.organization.id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/incidents/${parsed.data.incidentId}`);
+  return { success: "Task deleted." };
 }
 
 export async function sendChatMessageAction(

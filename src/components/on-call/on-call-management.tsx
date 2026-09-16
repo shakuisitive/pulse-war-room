@@ -6,8 +6,10 @@ import { format } from "date-fns";
 import {
   createOnCallSlotAction,
   createRotationAction,
+  deleteOnCallSlotAction,
   deleteRotationAction,
   setActiveRotationAction,
+  updateRotationAction,
 } from "@/app/actions/on-call";
 import type { ActionState } from "@/app/actions/organization";
 import { FormMessage } from "@/components/auth/form-message";
@@ -121,6 +123,11 @@ export function OnCallManagement({
                 await deleteRotationAction(rotation.id);
               });
             }}
+            onDeleteSlot={(slotId) => {
+              startTransition(async () => {
+                await deleteOnCallSlotAction(slotId);
+              });
+            }}
           />
         ))
       )}
@@ -135,6 +142,7 @@ function RotationCard({
   isUpdating,
   onSetActive,
   onDelete,
+  onDeleteSlot,
 }: {
   rotation: Rotation;
   slots: Slot[];
@@ -142,38 +150,71 @@ function RotationCard({
   isUpdating: boolean;
   onSetActive: () => void;
   onDelete: () => void;
+  onDeleteSlot: (slotId: string) => void;
 }) {
   const [slotState, slotAction, isSlotPending] = useActionState(
     createOnCallSlotAction,
     initialState,
   );
+  const [updateState, updateAction, isUpdatePending] = useActionState(
+    updateRotationAction,
+    initialState,
+  );
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-4">
-        <div className="space-y-1">
-          <CardTitle>{rotation.name}</CardTitle>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="capitalize">
-              {rotation.rotation_type}
-            </Badge>
-            {rotation.is_active ? (
-              <Badge>Active</Badge>
-            ) : (
-              <Badge variant="outline">Inactive</Badge>
-            )}
+      <CardHeader className="space-y-4">
+        <div className="flex flex-row items-start justify-between gap-4">
+          <div className="space-y-1">
+            <CardTitle>{rotation.name}</CardTitle>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="capitalize">
+                {rotation.rotation_type}
+              </Badge>
+              {rotation.is_active ? (
+                <Badge>Active</Badge>
+              ) : (
+                <Badge variant="outline">Inactive</Badge>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {!rotation.is_active ? (
+              <Button size="sm" disabled={isUpdating} onClick={onSetActive}>
+                Set active
+              </Button>
+            ) : null}
+            <Button size="sm" variant="outline" disabled={isUpdating} onClick={onDelete}>
+              Delete
+            </Button>
           </div>
         </div>
-        <div className="flex gap-2">
-          {!rotation.is_active ? (
-            <Button size="sm" disabled={isUpdating} onClick={onSetActive}>
-              Set active
+
+        <form action={updateAction} className="grid gap-3 border-t border-border pt-4 md:grid-cols-3">
+          <input type="hidden" name="rotationId" value={rotation.id} />
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor={`name-${rotation.id}`}>Rotation name</Label>
+            <Input
+              id={`name-${rotation.id}`}
+              name="name"
+              defaultValue={rotation.name}
+              required
+            />
+          </div>
+          <FormSelectField
+            id={`type-${rotation.id}`}
+            name="rotationType"
+            label="Type"
+            options={rotationTypeOptions}
+            defaultValue={rotation.rotation_type}
+          />
+          <div className="md:col-span-3">
+            <FormMessage error={updateState.error} success={updateState.success} />
+            <Button type="submit" size="sm" variant="secondary" disabled={isUpdatePending}>
+              Save rotation
             </Button>
-          ) : null}
-          <Button size="sm" variant="outline" disabled={isUpdating} onClick={onDelete}>
-            Delete
-          </Button>
-        </div>
+          </div>
+        </form>
       </CardHeader>
       <CardContent className="space-y-4">
         {slots.length === 0 ? (
@@ -183,15 +224,26 @@ function RotationCard({
             {slots.map((slot) => (
               <div
                 key={slot.id}
-                className="rounded-md border border-border p-3 text-sm"
+                className="flex items-start justify-between gap-3 rounded-md border border-border p-3 text-sm"
               >
-                <p className="font-medium">
-                  {slot.profile?.display_name ?? "Unknown member"}
-                </p>
-                <p className="text-muted-foreground">
-                  {format(new Date(slot.start_time), "PPp")} →{" "}
-                  {format(new Date(slot.end_time), "PPp")}
-                </p>
+                <div>
+                  <p className="font-medium">
+                    {slot.profile?.display_name ?? "Unknown member"}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {format(new Date(slot.start_time), "PPp")} →{" "}
+                    {format(new Date(slot.end_time), "PPp")}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive"
+                  disabled={isUpdating}
+                  onClick={() => onDeleteSlot(slot.id)}
+                >
+                  Remove
+                </Button>
               </div>
             ))}
           </div>
