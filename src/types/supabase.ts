@@ -1197,14 +1197,52 @@ export type Database = {
         Args: { p_incident_id: string }
         Returns: boolean
       }
+      check_sla_breaches: { Args: never; Returns: number }
+      claim_embedding_jobs: {
+        Args: { p_batch_size?: number }
+        Returns: {
+          incident_id: string
+          msg_id: number
+          org_id: string
+        }[]
+      }
+      complete_embedding_job: { Args: { p_msg_id: number }; Returns: undefined }
       create_organization_with_owner: {
         Args: { org_name: string; org_slug: string; owner_display_name: string }
         Returns: string
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      enqueue_incident_notifications: {
+        Args: {
+          p_body?: string
+          p_incident_id: string
+          p_notification_type: Database["public"]["Enums"]["notification_type"]
+          p_title: string
+        }
+        Returns: undefined
+      }
+      enqueue_notification_job: { Args: { p_payload: Json }; Returns: number }
       get_incident_role: {
         Args: { p_incident_id: string }
         Returns: Database["public"]["Enums"]["incident_role"]
+      }
+      get_org_analytics: {
+        Args: {
+          p_end?: string
+          p_severity?: Database["public"]["Enums"]["severity_level"]
+          p_start?: string
+        }
+        Returns: Json
+      }
+      get_similar_incidents: {
+        Args: { p_incident_id: string; p_limit?: number }
+        Returns: {
+          id: string
+          severity: Database["public"]["Enums"]["severity_level"]
+          similarity: number
+          status: Database["public"]["Enums"]["incident_status"]
+          title: string
+        }[]
       }
       is_incident_commander: {
         Args: { p_incident_id: string }
@@ -1214,13 +1252,60 @@ export type Database = {
         Args: { p_incident_id: string }
         Returns: boolean
       }
+      is_incident_stakeholder: {
+        Args: { p_incident_id: string }
+        Returns: boolean
+      }
       is_org_admin: { Args: never; Returns: boolean }
+      is_stakeholder_only_user: { Args: never; Returns: boolean }
       jwt_org_id: { Args: never; Returns: string }
       jwt_org_role: {
         Args: never
         Returns: Database["public"]["Enums"]["org_role"]
       }
+      process_notification_jobs: {
+        Args: { p_batch_size?: number }
+        Returns: number
+      }
       resolve_current_on_call: { Args: { p_org_id: string }; Returns: string }
+      search_incidents_by_embedding: {
+        Args: { p_embedding: string; p_limit?: number }
+        Returns: {
+          id: string
+          severity: Database["public"]["Enums"]["severity_level"]
+          similarity: number
+          status: Database["public"]["Enums"]["incident_status"]
+          title: string
+        }[]
+      }
+      search_incidents_keyword: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: {
+          acknowledged_at: string | null
+          commander_avatar_url: string | null
+          commander_name: string | null
+          commander_profile_id: string | null
+          completed_task_count: number | null
+          created_at: string | null
+          declared_at: string | null
+          description: string | null
+          id: string | null
+          open_task_count: number | null
+          org_id: string | null
+          participant_count: number | null
+          resolved_at: string | null
+          severity: Database["public"]["Enums"]["severity_level"] | null
+          status: Database["public"]["Enums"]["incident_status"] | null
+          title: string | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "incident_summary_view"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
     }
     Enums: {
       action_item_status: "open" | "in_progress" | "completed"
