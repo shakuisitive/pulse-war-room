@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { isValidStatusTransition } from "@/lib/incidents/status-transitions";
-import { getSessionContext } from "@/lib/auth/session";
+import { getSessionContext, isOrgAdmin } from "@/lib/auth/session";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   addParticipantSchema,
@@ -12,6 +13,7 @@ import {
   declareIncidentSchema,
   deleteTaskSchema,
   evidenceMetadataSchema,
+  inviteStakeholderSchema,
   removeParticipantSchema,
   sendChatMessageSchema,
   updateIncidentSeveritySchema,
@@ -427,4 +429,87 @@ export async function getEvidenceSignedUrlAction(storagePath: string) {
   }
 
   return { error: null, url: data.signedUrl };
+}
+
+function getSiteUrl() {
+  return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+}
+
+export async function inviteStakeholderAction(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const session = await getSessionContext();
+
+  if (!session) {
+    return { error: "You must be signed in." };
+  }
+
+  const parsed = inviteStakeholderSchema.safeParse({
+    incidentId: formData.get("incidentId"),
+    email: formData.get("email"),
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const supabase = await createClient();
+  const { data: participant } = await supabase
+    .from("incident_participants")
+    .select("incident_role")
+    .eq("incident_id", parsed.data.incidentId)
+    .eq("user_id", session.userId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  const canInvite =
+    isOrgAdmin(session.profile.org_role) ||
+    participant?.incident_role === "commander";
+
+  if (!canInvite) {
+    return { error: "Only the commander or an admin can invite stakeholders." };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(
+    parsed.data.email,
+    {
+      redirectTo: `${getSiteUrl()}/auth/callback?next=/incidents/${parsed.data.incidentId}`,
+      data: {
+        org_id: session.organization.id,
+        org_role: "member",
+        invited_by: session.userId,
+        stakeholder_incident_id: parsed.data.incidentId,
+      },
+    },
+  );
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  if (data.user) {
+    await admin.from("profiles").upsert({
+      id: data.user.id,
+      org_id: session.organization.id,
+      org_role: "member",
+      display_name: parsed.data.email.split("@")[0] ?? "Stakeholder",
+    });
+
+    await admin.from("incident_participants").upsert(
+      {
+        incident_id: parsed.data.incidentId,
+        user_id: data.user.id,
+        org_id: session.organization.id,
+        incident_role: "stakeholder",
+        is_active: true,
+        left_at: null,
+      },
+      { onConflict: "incident_id,user_id" },
+    );
+  }
+
+  revalidatePath(`/incidents/${parsed.data.incidentId}`);
+  return { success: `Stakeholder invitation sent to ${parsed.data.email}.` };
 }
