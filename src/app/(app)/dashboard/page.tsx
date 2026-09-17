@@ -2,6 +2,7 @@ import { Activity, ShieldCheck, Users } from "lucide-react";
 
 import { DeclareIncidentDialog } from "@/components/dashboard/declare-incident-dialog";
 import { IncidentList } from "@/components/dashboard/incident-list";
+import { IncidentSearch } from "@/components/dashboard/incident-search";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -45,7 +46,7 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <Badge variant="secondary">Milestone 2</Badge>
+          <Badge variant="secondary">Milestone 3</Badge>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">
             Welcome back, {session!.profile.display_name}
           </h1>
@@ -90,6 +91,8 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <IncidentSearch />
 
       <IncidentList
         orgId={session!.organization.id}
