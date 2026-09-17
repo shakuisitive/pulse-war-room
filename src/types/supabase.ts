@@ -129,6 +129,13 @@ export type Database = {
             foreignKeyName: "action_items_post_mortem_id_fkey"
             columns: ["post_mortem_id"]
             isOneToOne: false
+            referencedRelation: "post_mortem_archive_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_items_post_mortem_id_fkey"
+            columns: ["post_mortem_id"]
+            isOneToOne: false
             referencedRelation: "post_mortems"
             referencedColumns: ["id"]
           },
@@ -1185,6 +1192,53 @@ export type Database = {
           },
         ]
       }
+      post_mortem_archive_view: {
+        Row: {
+          author_name: string | null
+          created_at: string | null
+          id: string | null
+          incident_id: string | null
+          incident_status: Database["public"]["Enums"]["incident_status"] | null
+          incident_title: string | null
+          is_published: boolean | null
+          is_stakeholder_visible: boolean | null
+          org_id: string | null
+          published_at: string | null
+          severity: Database["public"]["Enums"]["severity_level"] | null
+          summary: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_mortems_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: true
+            referencedRelation: "analytics_base_view"
+            referencedColumns: ["incident_id"]
+          },
+          {
+            foreignKeyName: "post_mortems_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: true
+            referencedRelation: "incident_summary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_mortems_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: true
+            referencedRelation: "incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_mortems_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       can_manage_tasks: { Args: { p_incident_id: string }; Returns: boolean }
@@ -1222,9 +1276,58 @@ export type Database = {
         Returns: undefined
       }
       enqueue_notification_job: { Args: { p_payload: Json }; Returns: number }
+      get_audit_log: {
+        Args: {
+          p_actor_id?: string
+          p_end?: string
+          p_limit?: number
+          p_start?: string
+          p_table_name?: string
+        }
+        Returns: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: string
+          new_data: Json | null
+          old_data: Json | null
+          org_id: string | null
+          record_id: string | null
+          table_name: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "audit_log"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_incident_role: {
         Args: { p_incident_id: string }
         Returns: Database["public"]["Enums"]["incident_role"]
+      }
+      get_my_action_items: {
+        Args: { p_include_completed?: boolean }
+        Returns: {
+          assignee_id: string | null
+          completed_at: string | null
+          created_at: string
+          description: string
+          due_at: string | null
+          id: string
+          incident_id: string
+          org_id: string
+          post_mortem_id: string
+          status: Database["public"]["Enums"]["action_item_status"]
+          title: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "action_items"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_org_analytics: {
         Args: {
@@ -1268,6 +1371,8 @@ export type Database = {
         Returns: number
       }
       resolve_current_on_call: { Args: { p_org_id: string }; Returns: string }
+      run_presence_cleanup_maintenance: { Args: never; Returns: undefined }
+      run_weekly_incident_digest: { Args: never; Returns: number }
       search_incidents_by_embedding: {
         Args: { p_embedding: string; p_limit?: number }
         Returns: {
@@ -1306,6 +1411,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      send_stale_incident_reminders: { Args: never; Returns: number }
     }
     Enums: {
       action_item_status: "open" | "in_progress" | "completed"
@@ -1339,6 +1445,7 @@ export type Database = {
         | "commander_reassigned"
         | "escalation_triggered"
         | "ai_summary_generated"
+        | "post_mortem_published"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1502,6 +1609,7 @@ export const Constants = {
         "commander_reassigned",
         "escalation_triggered",
         "ai_summary_generated",
+        "post_mortem_published",
       ],
     },
   },
