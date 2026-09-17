@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 
+import { StakeholderView } from "@/components/war-room/stakeholder-view";
 import { WarRoom } from "@/components/war-room/war-room";
 import { getSessionContext, isOrgAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -97,11 +98,9 @@ export default async function IncidentPage({
       .maybeSingle(),
   ]);
 
-  const canAccessWarRoom =
-    isOrgAdmin(session.profile.org_role) ||
-    userParticipantResult.data?.incident_role;
+  const userRole = userParticipantResult.data?.incident_role ?? null;
 
-  if (!canAccessWarRoom) {
+  if (!userRole && !isOrgAdmin(session.profile.org_role)) {
     return (
       <div className="rounded-lg border border-border bg-card p-6">
         <h1 className="text-xl font-semibold">{incident.title}</h1>
@@ -110,6 +109,16 @@ export default async function IncidentPage({
           the commander to add you to the war room.
         </p>
       </div>
+    );
+  }
+
+  if (userRole === "stakeholder") {
+    return (
+      <StakeholderView
+        incident={incident}
+        commanderName={commanderResult.data?.display_name ?? null}
+        timelineEntries={timelineResult.data ?? []}
+      />
     );
   }
 
@@ -130,7 +139,7 @@ export default async function IncidentPage({
         userId: session.userId,
         displayName: session.profile.display_name,
       }}
-      userIncidentRole={userParticipantResult.data?.incident_role ?? null}
+      userIncidentRole={userRole}
       isOrgAdmin={isOrgAdmin(session.profile.org_role)}
     />
   );

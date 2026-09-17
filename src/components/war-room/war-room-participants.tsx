@@ -4,6 +4,7 @@ import { useActionState, useTransition } from "react";
 
 import {
   addParticipantAction,
+  inviteStakeholderAction,
   removeParticipantAction,
   type ActionState,
 } from "@/app/actions/incidents";
@@ -13,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormSelectField } from "@/components/ui/form-select-field";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { incidentRoles } from "@/schemas/incident";
 import type { Database } from "@/types/supabase";
 
@@ -47,6 +50,8 @@ export function WarRoomParticipants({
     addParticipantAction,
     initialState,
   );
+  const [stakeholderState, stakeholderAction, isStakeholderPending] =
+    useActionState(inviteStakeholderAction, initialState);
   const [isRemoving, startTransition] = useTransition();
 
   const activeParticipantIds = new Set(
@@ -140,6 +145,32 @@ export function WarRoomParticipants({
             <FormMessage error={state.error} success={state.success} />
             <Button type="submit" size="sm" disabled={isPending}>
               Add to war room
+            </Button>
+          </form>
+        ) : null}
+
+        {isCommander ? (
+          <form
+            action={stakeholderAction}
+            className="space-y-3 border-t border-border pt-4"
+          >
+            <input type="hidden" name="incidentId" value={incidentId} />
+            <div className="space-y-2">
+              <Label htmlFor="stakeholder-email">Invite stakeholder</Label>
+              <Input
+                id="stakeholder-email"
+                name="email"
+                type="email"
+                required
+                placeholder="external@company.com"
+              />
+            </div>
+            <FormMessage
+              error={stakeholderState.error}
+              success={stakeholderState.success}
+            />
+            <Button type="submit" size="sm" variant="secondary" disabled={isStakeholderPending}>
+              Send stakeholder invite
             </Button>
           </form>
         ) : null}

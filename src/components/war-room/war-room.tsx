@@ -9,6 +9,8 @@ import { WarRoomHeader } from "@/components/war-room/war-room-header";
 import { WarRoomParticipants } from "@/components/war-room/war-room-participants";
 import { WarRoomPresence } from "@/components/war-room/war-room-presence";
 import { WarRoomTasks } from "@/components/war-room/war-room-tasks";
+import { SimilarIncidentsPanel } from "@/components/war-room/similar-incidents-panel";
+import { WarRoomAiPanel } from "@/components/war-room/war-room-ai-panel";
 import { WarRoomTimeline } from "@/components/war-room/war-room-timeline";
 import { useRealtimeEvidence } from "@/hooks/use-realtime-evidence";
 import { useRealtimeIncident } from "@/hooks/use-realtime-incident";
@@ -146,6 +148,8 @@ export function WarRoom({
                 orgMembers={orgMembers}
                 isCommander={isCommander && !isReadOnly}
               />
+              <WarRoomAiPanel incidentId={incident.id} />
+              <SimilarIncidentsPanel incidentId={incident.id} />
               <WarRoomEvidence
                 incidentId={incident.id}
                 orgId={incident.org_id}
