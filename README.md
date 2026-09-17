@@ -1,36 +1,123 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pulse
 
-## Getting Started
+Real-time incident command center built with **Next.js** and **Supabase**. Pulse provides war rooms, on-call management, AI-assisted post-mortems, webhook ingestion, analytics, and org-scoped RBAC enforced at the database layer.
 
-First, run the development server:
+## Tech stack
+
+- Next.js 16 (App Router), React, TypeScript, Tailwind CSS, shadcn/ui
+- Supabase: Postgres, Auth, Realtime, Storage, Edge Functions, pg_cron, pgmq, pgvector
+- TanStack Query, Zod, Recharts, Vitest
+
+## Local development
+
+### Prerequisites
+
+- Node.js 20+
+- [Supabase CLI](https://supabase.com/docs/guides/cli)
+- OpenAI API key (optional — AI features degrade gracefully without it)
+
+### Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Fill `.env` with values from `supabase start` (local) or your Supabase project dashboard (cloud).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+supabase start
+supabase db reset   # applies migrations + seed.sql
+npm run gen:types
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open [http://localhost:3000](http://localhost:3000).
 
-## Learn More
+**Local demo login** (after `supabase db reset`):
 
-To learn more about Next.js, take a look at the following resources:
+- Email: `demo@pulse.dev`
+- Password: `password123`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start Next.js dev server |
+| `npm run build` | Production build |
+| `npm run test:run` | Run Vitest tests |
+| `npm run gen:types` | Regenerate Supabase TypeScript types |
 
-## Deploy on Vercel
+## Supabase Edge Functions
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Deploy to your linked project:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+supabase functions deploy webhook-ingest --no-verify-jwt
+supabase functions deploy ai-proxy
+supabase functions deploy process-jobs
+```
+
+Set `OPENAI_API_KEY` in **Project Settings → Edge Functions → Secrets**.
+
+Trigger embedding/notification processing manually:
+
+```bash
+curl -X POST "$SUPABASE_URL/functions/v1/process-jobs" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
+```
+
+## Architecture
+
+```text
+Next.js (UI, Server Actions)
+        ↓
+Supabase Auth + RLS (Postgres)
+        ↓
+Realtime / Edge Functions / pg_cron / pgmq
+```
+
+- **Authorization:** org isolation via JWT claims (`org_id`, `org_role`) + incident-level roles in `incident_participants`
+- **Real-time:** Postgres Changes for incidents, timeline, tasks, notifications; Broadcast/Presence for war room chat
+- **AI:** All OpenAI calls proxied through Edge Functions; API key never sent to the browser
+- **Async jobs:** pgmq queues + pg_cron; embeddings via `process-jobs` Edge Function
+
+## Deployment
+
+### Vercel (Next.js)
+
+1. Import the GitHub repo
+2. Set environment variables:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - `SUPABASE_SECRET_KEY`
+   - `NEXT_PUBLIC_SITE_URL`
+3. Deploy
+
+### Supabase (backend)
+
+```bash
+supabase link --project-ref YOUR_PROJECT_REF
+supabase db push
+supabase functions deploy webhook-ingest --no-verify-jwt
+supabase functions deploy ai-proxy
+supabase functions deploy process-jobs
+```
+
+Register the Custom Access Token Hook (`custom_access_token_hook`) in the Supabase Auth dashboard.
+
+## Database schema
+
+Migrations live in `supabase/migrations/`. Key domains:
+
+- **Core:** organizations, profiles, incidents, incident_participants
+- **War room:** timeline_entries, chat_messages, tasks, evidence
+- **Post-incident:** post_mortems, action_items
+- **Ops:** on_call_rotations, escalation_policies, webhook_integrations, notifications
+- **Observability:** audit_log, analytics RPCs, pgvector embeddings
+
+Run `supabase db reset` locally to apply all migrations from scratch.
+
+## License
+
+Private portfolio project.
