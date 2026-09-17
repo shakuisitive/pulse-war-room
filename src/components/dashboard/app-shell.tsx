@@ -3,26 +3,35 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Bell,
+  BarChart3,
   CalendarClock,
   LayoutDashboard,
   LogOut,
+  Plug,
   Settings,
+  ShieldAlert,
   UserCircle,
   Users,
 } from "lucide-react";
 
 import { signOutAction } from "@/app/actions/auth";
 import { OrgPresence } from "@/components/dashboard/org-presence";
+import { NotificationCenter } from "@/components/notifications/notification-center";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import type { Database } from "@/types/supabase";
+
+type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/integrations", label: "Integrations", icon: Plug },
+  { href: "/escalation", label: "Escalation", icon: ShieldAlert },
   { href: "/on-call", label: "On-call", icon: CalendarClock },
   { href: "/team", label: "Team", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -34,11 +43,13 @@ export function AppShell({
   orgId,
   orgName,
   currentUser,
+  initialNotifications,
 }: {
   children: React.ReactNode;
   orgId: string;
   orgName: string;
   currentUser: { userId: string; displayName: string; orgRole: string };
+  initialNotifications: NotificationRow[];
 }) {
   const pathname = usePathname();
 
@@ -103,9 +114,11 @@ export function AppShell({
           </div>
 
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" aria-label="Notifications">
-              <Bell className="size-4" />
-            </Button>
+            <NotificationCenter
+              userId={currentUser.userId}
+              orgId={orgId}
+              initialNotifications={initialNotifications}
+            />
             <Badge variant="secondary" className="capitalize">
               {currentUser.orgRole}
             </Badge>
