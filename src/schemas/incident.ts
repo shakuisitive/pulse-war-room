@@ -42,6 +42,11 @@ export const removeParticipantSchema = z.object({
   userId: z.uuid(),
 });
 
+export const inviteStakeholderSchema = z.object({
+  incidentId: z.uuid(),
+  email: z.email("Enter a valid email address"),
+});
+
 export const createTaskSchema = z.object({
   incidentId: z.uuid(),
   title: z.string().trim().min(2, "Task title is required").max(200),
