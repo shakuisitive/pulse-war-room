@@ -85,8 +85,13 @@ function IncidentSection({
               incident.created_at ??
               new Date(0).toISOString();
 
+            const href =
+              incident.status === "resolved"
+                ? `/incidents/${incident.id}/post-mortem`
+                : `/incidents/${incident.id}`;
+
             return (
-              <Link key={incident.id} href={`/incidents/${incident.id}`}>
+              <Link key={incident.id} href={href}>
                 <Card className="transition-colors hover:border-primary/40">
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
                     <div className="space-y-2">

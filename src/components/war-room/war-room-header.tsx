@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTransition } from "react";
 
 import {
@@ -72,8 +73,14 @@ export function WarRoomHeader({
           </div>
         </div>
 
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {incident.status === "resolved" ? (
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/incidents/${incident.id}/post-mortem`}>Open post-mortem</Link>
+            </Button>
+          ) : null}
         {isCommander && !isReadOnly ? (
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <>
             <Select
               value={incident.severity}
               disabled={isPending}
@@ -109,8 +116,9 @@ export function WarRoomHeader({
                 Mark {status}
               </Button>
             ))}
-          </div>
+          </>
         ) : null}
+        </div>
       </div>
     </div>
   );
