@@ -1,5 +1,6 @@
 import { Activity, ShieldCheck, Users } from "lucide-react";
 
+import { ActionItemsWidget } from "@/components/dashboard/action-items-widget";
 import { DeclareIncidentDialog } from "@/components/dashboard/declare-incident-dialog";
 import { IncidentList } from "@/components/dashboard/incident-list";
 import { IncidentSearch } from "@/components/dashboard/incident-search";
@@ -24,8 +25,12 @@ export default async function DashboardPage() {
     ...(session!.organization.settings as Partial<OrgSettingsInput>),
   };
 
-  const [{ count: memberCount }, { count: openIncidentCount }, { data: incidents }] =
-    await Promise.all([
+  const [
+    { count: memberCount },
+    { count: openIncidentCount },
+    { data: incidents },
+    { data: myActionItems },
+  ] = await Promise.all([
       supabase
         .from("profiles")
         .select("*", { count: "exact", head: true })
@@ -40,13 +45,14 @@ export default async function DashboardPage() {
         .select("*")
         .eq("org_id", session!.organization.id)
         .order("created_at", { ascending: false }),
+      supabase.rpc("get_my_action_items", { p_include_completed: false }),
     ]);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <Badge variant="secondary">Milestone 3</Badge>
+          <Badge variant="secondary">Milestone 4</Badge>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">
             Welcome back, {session!.profile.display_name}
           </h1>
@@ -93,6 +99,8 @@ export default async function DashboardPage() {
       </div>
 
       <IncidentSearch />
+
+      <ActionItemsWidget items={myActionItems ?? []} />
 
       <IncidentList
         orgId={session!.organization.id}

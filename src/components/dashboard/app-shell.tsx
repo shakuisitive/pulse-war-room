@@ -5,9 +5,11 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   CalendarClock,
+  FileText,
   LayoutDashboard,
   LogOut,
   Plug,
+  ScrollText,
   Settings,
   ShieldAlert,
   UserCircle,
@@ -27,8 +29,9 @@ import type { Database } from "@/types/supabase";
 
 type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 
-const navItems = [
+const baseNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/post-mortems", label: "Post-mortems", icon: FileText },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/integrations", label: "Integrations", icon: Plug },
   { href: "/escalation", label: "Escalation", icon: ShieldAlert },
@@ -52,6 +55,15 @@ export function AppShell({
   initialNotifications: NotificationRow[];
 }) {
   const pathname = usePathname();
+  const isAdmin =
+    currentUser.orgRole === "owner" || currentUser.orgRole === "admin";
+  const navItems = isAdmin
+    ? [
+        ...baseNavItems.slice(0, 2),
+        { href: "/audit-log", label: "Audit log", icon: ScrollText },
+        ...baseNavItems.slice(2),
+      ]
+    : baseNavItems;
 
   const sidebar = (
     <div className="flex h-full flex-col gap-6 p-4">
