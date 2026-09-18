@@ -16,6 +16,9 @@
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+/e2e/.auth/
+/e2e/coverage-report.json
+/e2e/playwright-report.json
 
 # next.js
 /.next/
