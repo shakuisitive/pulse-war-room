@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 
 import {
@@ -39,6 +40,7 @@ export function WarRoomHeader({
   isCommander: boolean;
   isReadOnly: boolean;
 }) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const nextStatuses = getNextStatuses(incident.status);
 
@@ -86,7 +88,13 @@ export function WarRoomHeader({
               disabled={isPending}
               onValueChange={(value) => {
                 startTransition(async () => {
-                  await updateIncidentSeverityAction(incident.id, value);
+                  const result = await updateIncidentSeverityAction(
+                    incident.id,
+                    value,
+                  );
+                  if (!result.error) {
+                    router.refresh();
+                  }
                 });
               }}
             >
@@ -105,11 +113,18 @@ export function WarRoomHeader({
             {nextStatuses.map((status) => (
               <Button
                 key={status}
+                type="button"
                 size="sm"
                 disabled={isPending}
                 onClick={() => {
                   startTransition(async () => {
-                    await updateIncidentStatusAction(incident.id, status);
+                    const result = await updateIncidentStatusAction(
+                      incident.id,
+                      status,
+                    );
+                    if (!result.error) {
+                      router.refresh();
+                    }
                   });
                 }}
               >

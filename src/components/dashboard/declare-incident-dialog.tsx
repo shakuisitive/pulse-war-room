@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 
 import { declareIncidentAction, type ActionState } from "@/app/actions/incidents";
 import { FormMessage } from "@/components/auth/form-message";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -27,16 +28,15 @@ const severityOptions = severityLevels.map((level) => ({
 }));
 
 export function DeclareIncidentDialog() {
-  const [open, setOpen] = useState(false);
   const [state, formAction, isPending] = useActionState(
     declareIncidentAction,
     initialState,
   );
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog>
       <DialogTrigger asChild>
-        <Button>Declare incident</Button>
+        <Button type="button">Declare incident</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
@@ -74,13 +74,11 @@ export function DeclareIncidentDialog() {
           <FormMessage error={state.error} success={state.success} />
 
           <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-            >
-              Cancel
-            </Button>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </DialogClose>
             <Button type="submit" disabled={isPending}>
               {isPending ? "Declaring..." : "Open war room"}
             </Button>
