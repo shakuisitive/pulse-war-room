@@ -1,24 +1,7 @@
-import fs from "node:fs";
-import path from "node:path";
-
 import { test, expect } from "@playwright/test";
 
-import type { E2ECredentials } from "./global-setup";
-import {
-  createIncidentViaAdmin,
-  openDeclareIncidentDialog,
-  updateIncidentStatusViaAdmin,
-} from "./helpers/incidents";
+import { openDeclareIncidentDialog } from "./helpers/incidents";
 import { markTested } from "./module-coverage";
-
-function getCredentials(): E2ECredentials {
-  return JSON.parse(
-    fs.readFileSync(
-      path.resolve(process.cwd(), "e2e/.auth/credentials.json"),
-      "utf8",
-    ),
-  ) as E2ECredentials;
-}
 
 test.describe.configure({ mode: "serial", timeout: 120_000 });
 
@@ -97,26 +80,14 @@ test.describe("authenticated modules", () => {
     await page.goto("/dashboard");
     await page.waitForLoadState("networkidle");
 
-    try {
-      await openDeclareIncidentDialog(page);
-      await page.getByLabel("Title").fill(incidentTitle);
-      await page.getByLabel("Description").fill(description);
-      await page.getByRole("button", { name: "Open war room" }).click();
-      await expect(page).toHaveURL(/\/incidents\//, { timeout: 30_000 });
-      markTested("m2-declare-incident");
-    } catch {
-      incidentId = await createIncidentViaAdmin(
-        getCredentials(),
-        incidentTitle,
-        description,
-      );
-      await page.goto(`/incidents/${incidentId}`);
-      markTested("m2-declare-incident", "partial");
-    }
+    await openDeclareIncidentDialog(page);
+    await page.getByLabel("Title").fill(incidentTitle);
+    await page.getByLabel("Description").fill(description);
+    await page.getByRole("button", { name: "Open war room" }).click();
+    await expect(page).toHaveURL(/\/incidents\//, { timeout: 30_000 });
+    markTested("m2-declare-incident");
 
-    if (!incidentId) {
-      incidentId = page.url().split("/incidents/")[1]?.split("/")[0] ?? "";
-    }
+    incidentId = page.url().split("/incidents/")[1]?.split("/")[0] ?? "";
     expect(incidentId).toBeTruthy();
     await expect(page.getByRole("heading", { name: incidentTitle })).toBeVisible();
     markTested("m2-war-room-header");
@@ -138,32 +109,28 @@ test.describe("authenticated modules", () => {
     ).toBeVisible();
     markTested("m2-timeline");
 
-    async function transitionStatus(
-      buttonName: string,
-      statusLabel: string,
-      statusValue: "investigating" | "identified" | "monitoring",
-    ) {
-      const statusButton = page.getByRole("button", { name: buttonName });
-      if (await statusButton.isVisible()) {
-        await statusButton.click().catch(() => undefined);
-        await page.waitForTimeout(1_000);
-      }
-
-      await updateIncidentStatusViaAdmin(incidentId, statusValue);
-      await page.reload();
-      await expect(page.getByText(statusLabel).first()).toBeVisible({
+    async function transitionStatus(buttonName: string, statusLabel: string) {
+      await Promise.all([
+        page.waitForResponse(
+          (response) =>
+            response.request().method() === "POST" &&
+            response.url().includes(`/incidents/${incidentId}`),
+          { timeout: 15_000 },
+        ),
+        page.getByRole("button", { name: buttonName }).click(),
+      ]);
+      await expect(page.getByText(statusLabel, { exact: true })).toBeVisible({
         timeout: 15_000,
       });
+      await expect(
+        page.getByRole("button", { name: buttonName }),
+      ).toHaveCount(0);
     }
 
-    await transitionStatus(
-      "Mark investigating",
-      "Investigating",
-      "investigating",
-    );
-    await transitionStatus("Mark identified", "Identified", "identified");
-    await transitionStatus("Mark monitoring", "Monitoring", "monitoring");
-    markTested("m2-status-transitions", "partial");
+    await transitionStatus("Mark investigating", "Investigating");
+    await transitionStatus("Mark identified", "Identified");
+    await transitionStatus("Mark monitoring", "Monitoring");
+    markTested("m2-status-transitions");
 
     const chatMessage = "E2E war room chat message";
     const chatInput = page.getByPlaceholder("Message the war room");
@@ -226,14 +193,16 @@ test.describe("authenticated modules", () => {
 
   test("resolve incident", async ({ page }) => {
     await page.goto(`/incidents/${incidentId}`);
-    const resolveButton = page.getByRole("button", { name: "Mark resolved" });
-    if (await resolveButton.isVisible()) {
-      await resolveButton.click().catch(() => undefined);
-      await page.waitForTimeout(1_000);
-    }
-    await updateIncidentStatusViaAdmin(incidentId, "resolved");
-    await page.reload();
-    await expect(page.getByText("Resolved").first()).toBeVisible({
+    await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          response.url().includes(`/incidents/${incidentId}`),
+        { timeout: 15_000 },
+      ),
+      page.getByRole("button", { name: "Mark resolved" }).click(),
+    ]);
+    await expect(page.getByText("Resolved", { exact: true })).toBeVisible({
       timeout: 15_000,
     });
     await expect(

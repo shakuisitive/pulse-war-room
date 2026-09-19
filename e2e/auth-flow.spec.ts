@@ -52,6 +52,7 @@ test.describe("auth flows", () => {
   });
 
   test("onboarding creates organization for new user", async ({ page }) => {
+    test.setTimeout(60_000);
     loadEnvFile();
     const stamp = Date.now();
     const email = `e2e-onboard-${stamp}@pulse.dev`;
@@ -70,6 +71,13 @@ test.describe("auth flows", () => {
     }
 
     try {
+      const { data: existingProfile } = await admin
+        .from("profiles")
+        .select("id")
+        .eq("id", created.user.id)
+        .maybeSingle();
+      expect(existingProfile).toBeNull();
+
       await page.goto("/login");
       await page.getByRole("textbox", { name: "Email" }).fill(email);
       await page.getByRole("textbox", { name: "Password" }).fill(password);
@@ -93,6 +101,14 @@ test.describe("auth flows", () => {
       ).toBeVisible();
       markTested("auth-onboarding-create-org");
     } finally {
+      const { data: org } = await admin
+        .from("organizations")
+        .select("id")
+        .eq("slug", orgSlug)
+        .maybeSingle();
+      if (org) {
+        await admin.from("organizations").delete().eq("id", org.id);
+      }
       await admin.auth.admin.deleteUser(created.user.id);
     }
   });

@@ -85,6 +85,16 @@ export async function signInAction(
     ) {
       redirect("/mfa/verify");
     }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", data.session.user.id)
+      .maybeSingle();
+
+    if (!profile) {
+      redirect("/onboarding/create-org");
+    }
   }
 
   redirect("/dashboard");

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTransition } from "react";
 
 import {
@@ -41,6 +42,7 @@ export function WarRoomHeader({
   isReadOnly: boolean;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
   const nextStatuses = getNextStatuses(incident.status);
 
@@ -93,6 +95,9 @@ export function WarRoomHeader({
                     value,
                   );
                   if (!result.error) {
+                    void queryClient.invalidateQueries({
+                      queryKey: ["incident", incident.id],
+                    });
                     router.refresh();
                   }
                 });
@@ -123,6 +128,9 @@ export function WarRoomHeader({
                       status,
                     );
                     if (!result.error) {
+                      void queryClient.invalidateQueries({
+                        queryKey: ["incident", incident.id],
+                      });
                       router.refresh();
                     }
                   });
