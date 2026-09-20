@@ -21,6 +21,7 @@ export async function updateEscalationPolicyAction(
     policyId: formData.get("policyId"),
     acknowledgeThresholdMinutes: formData.get("acknowledgeThresholdMinutes"),
     resolveThresholdMinutes: formData.get("resolveThresholdMinutes"),
+    autoEscalateSeverity: formData.get("autoEscalateSeverity") === "on",
   });
 
   if (!parsed.success) {
@@ -33,6 +34,9 @@ export async function updateEscalationPolicyAction(
     .update({
       acknowledge_threshold_minutes: parsed.data.acknowledgeThresholdMinutes,
       resolve_threshold_minutes: parsed.data.resolveThresholdMinutes,
+      escalation_action: {
+        autoEscalateSeverity: parsed.data.autoEscalateSeverity,
+      },
     })
     .eq("id", parsed.data.policyId)
     .eq("org_id", session.organization.id);

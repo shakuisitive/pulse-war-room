@@ -9,9 +9,11 @@ import { createClient } from "@/lib/supabase/server";
 import {
   createOrganizationSchema,
   defaultOrgSettings,
+  deleteOrganizationSchema,
   inviteMemberSchema,
   orgSettingsSchema,
   profileSchema,
+  transferOwnershipSchema,
   updateMemberRoleSchema,
 } from "@/schemas/organization";
 
@@ -22,6 +24,20 @@ export type ActionState = {
 
 function getSiteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+}
+
+function parseMetadataFields(raw: string) {
+  return raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [key, ...labelParts] = line.split("|");
+      return {
+        key: (key ?? "").trim(),
+        label: labelParts.join("|").trim() || (key ?? "").trim(),
+      };
+    });
 }
 
 export async function createOrganizationAction(
@@ -125,6 +141,9 @@ export async function updateOrgSettingsAction(
     name: formData.get("name"),
     slug: formData.get("slug"),
     requireMfa: formData.get("requireMfa") === "on",
+    incidentMetadataFields: parseMetadataFields(
+      formData.get("incidentMetadataFields")?.toString() ?? "",
+    ),
     slaThresholds: {
       sev1: {
         acknowledgeMinutes: Number(formData.get("sev1Ack")),
@@ -334,4 +353,99 @@ export async function updateProfileAction(
 
   revalidatePath("/profile");
   return { success: "Profile updated." };
+}
+
+export async function transferOwnershipAction(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const session = await getSessionContext();
+
+  if (!session || session.profile.org_role !== "owner") {
+    return { error: "Only the organization owner can transfer ownership." };
+  }
+
+  const parsed = transferOwnershipSchema.safeParse({
+    userId: formData.get("userId"),
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  if (parsed.data.userId === session.userId) {
+    return { error: "Pick another member to become owner." };
+  }
+
+  const supabase = await createClient();
+  const { data: nextOwner, error: nextOwnerError } = await supabase
+    .from("profiles")
+    .select("id, is_stakeholder_only")
+    .eq("id", parsed.data.userId)
+    .eq("org_id", session.organization.id)
+    .maybeSingle();
+
+  if (nextOwnerError || !nextOwner || nextOwner.is_stakeholder_only) {
+    return { error: "That member cannot become the owner." };
+  }
+
+  const { error: promoteError } = await supabase
+    .from("profiles")
+    .update({ org_role: "owner" })
+    .eq("id", parsed.data.userId)
+    .eq("org_id", session.organization.id);
+
+  if (promoteError) {
+    return { error: promoteError.message };
+  }
+
+  const { error: demoteError } = await supabase
+    .from("profiles")
+    .update({ org_role: "admin" })
+    .eq("id", session.userId)
+    .eq("org_id", session.organization.id);
+
+  if (demoteError) {
+    return { error: demoteError.message };
+  }
+
+  await supabase.auth.refreshSession();
+  revalidatePath("/team");
+  revalidatePath("/settings");
+  return { success: "Ownership transferred." };
+}
+
+export async function deleteOrganizationAction(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const session = await getSessionContext();
+
+  if (!session || session.profile.org_role !== "owner") {
+    return { error: "Only the organization owner can delete the organization." };
+  }
+
+  const parsed = deleteOrganizationSchema.safeParse({
+    confirmSlug: formData.get("confirmSlug"),
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  if (parsed.data.confirmSlug !== session.organization.slug) {
+    return { error: "Type the organization slug exactly to confirm deletion." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("organizations")
+    .delete()
+    .eq("id", session.organization.id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  redirect("/");
 }

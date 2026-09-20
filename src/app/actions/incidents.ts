@@ -7,6 +7,7 @@ import { isValidStatusTransition } from "@/lib/incidents/status-transitions";
 import { getSessionContext, isOrgAdmin } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { findMentionedUserIds } from "@/lib/incidents/mentions";
 import {
   addParticipantSchema,
   createTaskSchema,
@@ -14,11 +15,14 @@ import {
   deleteTaskSchema,
   evidenceMetadataSchema,
   inviteStakeholderSchema,
+  reassignCommanderSchema,
   removeParticipantSchema,
   sendChatMessageSchema,
   updateIncidentSeveritySchema,
   updateIncidentStatusSchema,
+  updateIncidentTitleSchema,
   updateTaskSchema,
+  updateVisibilitySchema,
 } from "@/schemas/incident";
 import type { ActionState } from "@/app/actions/organization";
 
@@ -34,10 +38,18 @@ export async function declareIncidentAction(
     return { error: "You must be signed in to declare an incident." };
   }
 
+  const metadata: Record<string, string> = {};
+  for (const [key, value] of formData.entries()) {
+    if (key.startsWith("metadata.") && typeof value === "string" && value.trim()) {
+      metadata[key.slice("metadata.".length)] = value.trim();
+    }
+  }
+
   const parsed = declareIncidentSchema.safeParse({
     title: formData.get("title"),
     description: formData.get("description") ?? "",
     severity: formData.get("severity"),
+    metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
   });
 
   if (!parsed.success) {
@@ -53,6 +65,7 @@ export async function declareIncidentAction(
       description: parsed.data.description ?? "",
       severity: parsed.data.severity,
       declared_by: session.userId,
+      metadata: parsed.data.metadata ?? {},
     })
     .select("id")
     .single();
@@ -149,6 +162,98 @@ export async function updateIncidentSeverityAction(
   return { success: "Severity updated." };
 }
 
+export async function updateIncidentTitleAction(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const session = await getSessionContext();
+
+  if (!session) {
+    return { error: "You must be signed in." };
+  }
+
+  const parsed = updateIncidentTitleSchema.safeParse({
+    incidentId: formData.get("incidentId"),
+    title: formData.get("title"),
+    description: formData.get("description") ?? "",
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("incidents")
+    .update({
+      title: parsed.data.title,
+      description: parsed.data.description ?? "",
+    })
+    .eq("id", parsed.data.incidentId)
+    .eq("org_id", session.organization.id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/incidents/${parsed.data.incidentId}`);
+  revalidatePath("/dashboard");
+  return { success: "Incident details updated." };
+}
+
+export async function reassignCommanderAction(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const session = await getSessionContext();
+
+  if (!session) {
+    return { error: "You must be signed in." };
+  }
+
+  const parsed = reassignCommanderSchema.safeParse({
+    incidentId: formData.get("incidentId"),
+    commanderId: formData.get("commanderId"),
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("incidents")
+    .update({ commander_id: parsed.data.commanderId })
+    .eq("id", parsed.data.incidentId)
+    .eq("org_id", session.organization.id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  const { error: participantError } = await supabase
+    .from("incident_participants")
+    .upsert(
+      {
+        incident_id: parsed.data.incidentId,
+        user_id: parsed.data.commanderId,
+        org_id: session.organization.id,
+        incident_role: "commander",
+        is_active: true,
+        left_at: null,
+      },
+      { onConflict: "incident_id,user_id" },
+    );
+
+  if (participantError) {
+    return { error: participantError.message };
+  }
+
+  revalidatePath(`/incidents/${parsed.data.incidentId}`);
+  revalidatePath("/dashboard");
+  return { success: "Commander reassigned." };
+}
+
 export async function addParticipantAction(
   _prevState: ActionState,
   formData: FormData,
@@ -239,6 +344,7 @@ export async function createTaskAction(
     title: formData.get("title"),
     description: formData.get("description") ?? "",
     assigneeId: assigneeRaw || undefined,
+    dueAt: formData.get("dueAt")?.toString() ?? "",
   });
 
   if (!parsed.success) {
@@ -253,6 +359,7 @@ export async function createTaskAction(
     description: parsed.data.description ?? "",
     assignee_id: parsed.data.assigneeId || null,
     created_by: session.userId,
+    due_at: parsed.data.dueAt ? new Date(parsed.data.dueAt).toISOString() : null,
   });
 
   if (error) {
@@ -341,6 +448,7 @@ export async function deleteTaskAction(
 export async function sendChatMessageAction(
   incidentId: string,
   content: string,
+  isStakeholderVisible = false,
 ): Promise<ActionState> {
   const session = await getSessionContext();
 
@@ -348,7 +456,11 @@ export async function sendChatMessageAction(
     return { error: "You must be signed in." };
   }
 
-  const parsed = sendChatMessageSchema.safeParse({ incidentId, content });
+  const parsed = sendChatMessageSchema.safeParse({
+    incidentId,
+    content,
+    isStakeholderVisible,
+  });
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -360,13 +472,118 @@ export async function sendChatMessageAction(
     org_id: session.organization.id,
     sender_id: session.userId,
     content: parsed.data.content,
+    is_stakeholder_visible: parsed.data.isStakeholderVisible ?? false,
   });
 
   if (error) {
     return { error: error.message };
   }
 
+  const { data: mentionCandidates } = await supabase
+    .from("incident_participants")
+    .select("user_id, profile:profiles!incident_participants_user_id_fkey(display_name)")
+    .eq("incident_id", parsed.data.incidentId)
+    .eq("is_active", true);
+
+  const mentionedIds = findMentionedUserIds(
+    parsed.data.content,
+    (mentionCandidates ?? []).flatMap((row) => {
+      const profile = Array.isArray(row.profile) ? row.profile[0] : row.profile;
+      if (!profile?.display_name) {
+        return [];
+      }
+      return [{ id: row.user_id, display_name: profile.display_name }];
+    }),
+  ).filter((userId) => userId !== session.userId);
+
+  for (const userId of mentionedIds) {
+    await supabase.rpc("enqueue_notification_job", {
+      p_payload: {
+        org_id: session.organization.id,
+        user_id: userId,
+        notification_type: "mentioned",
+        title: "You were mentioned in a war room",
+        body: parsed.data.content.slice(0, 180),
+        incident_id: parsed.data.incidentId,
+      },
+    });
+  }
+
   return { success: "Message sent." };
+}
+
+export async function updateChatVisibilityAction(
+  messageId: string,
+  incidentId: string,
+  isStakeholderVisible: boolean,
+): Promise<ActionState> {
+  const session = await getSessionContext();
+
+  if (!session) {
+    return { error: "You must be signed in." };
+  }
+
+  const parsed = updateVisibilitySchema.safeParse({
+    id: messageId,
+    incidentId,
+    isStakeholderVisible,
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("chat_messages")
+    .update({ is_stakeholder_visible: parsed.data.isStakeholderVisible })
+    .eq("id", parsed.data.id)
+    .eq("incident_id", parsed.data.incidentId)
+    .eq("org_id", session.organization.id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/incidents/${parsed.data.incidentId}`);
+  return { success: "Chat visibility updated." };
+}
+
+export async function updateEvidenceVisibilityAction(
+  evidenceId: string,
+  incidentId: string,
+  isStakeholderVisible: boolean,
+): Promise<ActionState> {
+  const session = await getSessionContext();
+
+  if (!session) {
+    return { error: "You must be signed in." };
+  }
+
+  const parsed = updateVisibilitySchema.safeParse({
+    id: evidenceId,
+    incidentId,
+    isStakeholderVisible,
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("evidence")
+    .update({ is_stakeholder_visible: parsed.data.isStakeholderVisible })
+    .eq("id", parsed.data.id)
+    .eq("incident_id", parsed.data.incidentId)
+    .eq("org_id", session.organization.id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/incidents/${parsed.data.incidentId}`);
+  return { success: "Evidence visibility updated." };
 }
 
 export async function createEvidenceRecordAction(
@@ -386,6 +603,7 @@ export async function createEvidenceRecordAction(
     fileType: formData.get("fileType"),
     fileSize: Number(formData.get("fileSize")),
     caption: formData.get("caption") ?? "",
+    isStakeholderVisible: formData.get("isStakeholderVisible") === "on",
   });
 
   if (!parsed.success) {
@@ -402,6 +620,7 @@ export async function createEvidenceRecordAction(
     file_type: parsed.data.fileType,
     file_size: parsed.data.fileSize,
     caption: parsed.data.caption || null,
+    is_stakeholder_visible: parsed.data.isStakeholderVisible ?? false,
   });
 
   if (error) {
@@ -481,6 +700,7 @@ export async function inviteStakeholderAction(
         org_role: "member",
         invited_by: session.userId,
         stakeholder_incident_id: parsed.data.incidentId,
+        is_stakeholder_only: true,
       },
     },
   );
@@ -490,11 +710,18 @@ export async function inviteStakeholderAction(
   }
 
   if (data.user) {
+    const { data: existingProfile } = await admin
+      .from("profiles")
+      .select("id, is_stakeholder_only")
+      .eq("id", data.user.id)
+      .maybeSingle();
+
     await admin.from("profiles").upsert({
       id: data.user.id,
       org_id: session.organization.id,
       org_role: "member",
       display_name: parsed.data.email.split("@")[0] ?? "Stakeholder",
+      is_stakeholder_only: existingProfile?.is_stakeholder_only ?? true,
     });
 
     await admin.from("incident_participants").upsert(
