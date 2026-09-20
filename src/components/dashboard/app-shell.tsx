@@ -51,19 +51,26 @@ export function AppShell({
   children: React.ReactNode;
   orgId: string;
   orgName: string;
-  currentUser: { userId: string; displayName: string; orgRole: string };
+  currentUser: {
+    userId: string;
+    displayName: string;
+    orgRole: string;
+    isStakeholderOnly?: boolean;
+  };
   initialNotifications: NotificationRow[];
 }) {
   const pathname = usePathname();
   const isAdmin =
     currentUser.orgRole === "owner" || currentUser.orgRole === "admin";
-  const navItems = isAdmin
-    ? [
-        ...baseNavItems.slice(0, 2),
-        { href: "/audit-log", label: "Audit log", icon: ScrollText },
-        ...baseNavItems.slice(2),
-      ]
-    : baseNavItems;
+  const navItems = currentUser.isStakeholderOnly
+    ? baseNavItems.filter((item) => item.href === "/profile")
+    : isAdmin
+      ? [
+          ...baseNavItems.slice(0, 2),
+          { href: "/audit-log", label: "Audit log", icon: ScrollText },
+          ...baseNavItems.slice(2),
+        ]
+      : baseNavItems;
 
   const sidebar = (
     <div className="flex h-full flex-col gap-6 p-4">
@@ -132,7 +139,7 @@ export function AppShell({
               initialNotifications={initialNotifications}
             />
             <Badge variant="secondary" className="capitalize">
-              {currentUser.orgRole}
+              {currentUser.isStakeholderOnly ? "stakeholder" : currentUser.orgRole}
             </Badge>
             <Avatar className="size-8">
               <AvatarFallback>

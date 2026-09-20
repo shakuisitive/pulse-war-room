@@ -3,8 +3,10 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import {
   isAuthRoute,
+  isMfaAllowedRoute,
   isOnboardingRoute,
   isPublicRoute,
+  isStakeholderAllowedRoute,
 } from "@/lib/auth/routes";
 import { getSupabasePublishableKey, getSupabaseUrl } from "@/lib/env";
 import type { Database } from "@/types/supabase";
@@ -64,7 +66,7 @@ export async function updateSession(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id")
+    .select("id, org_id, is_stakeholder_only")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -82,8 +84,54 @@ export async function updateSession(request: NextRequest) {
 
   if (hasProfile && isOnboardingRoute(pathname)) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/dashboard";
+    redirectUrl.pathname = profile?.is_stakeholder_only
+      ? "/profile"
+      : "/dashboard";
     return NextResponse.redirect(redirectUrl);
+  }
+
+  if (profile?.is_stakeholder_only && !isStakeholderAllowedRoute(pathname)) {
+    const { data: assignment } = await supabase
+      .from("incident_participants")
+      .select("incident_id")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .eq("incident_role", "stakeholder")
+      .limit(1)
+      .maybeSingle();
+
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = assignment?.incident_id
+      ? `/incidents/${assignment.incident_id}`
+      : "/profile";
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  if (
+    profile &&
+    !profile.is_stakeholder_only &&
+    !isMfaAllowedRoute(pathname)
+  ) {
+    const { data: organization } = await supabase
+      .from("organizations")
+      .select("settings")
+      .eq("id", profile.org_id)
+      .maybeSingle();
+
+    const settings = organization?.settings as { requireMfa?: boolean } | null;
+    if (settings?.requireMfa) {
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const hasVerifiedTotp = (factors?.totp ?? []).some(
+        (factor) => factor.status === "verified",
+      );
+
+      if (!hasVerifiedTotp) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = "/profile";
+        redirectUrl.searchParams.set("mfa", "required");
+        return NextResponse.redirect(redirectUrl);
+      }
+    }
   }
 
   return supabaseResponse;

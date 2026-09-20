@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import {
   inviteMemberAction,
   removeMemberFormAction,
+  transferOwnershipAction,
   updateMemberRoleAction,
   type ActionState,
 } from "@/app/actions/organization";
@@ -34,15 +35,27 @@ export function TeamManagement({
   members,
   canManage,
   currentUserId,
+  isOwner,
 }: {
   members: Member[];
   canManage: boolean;
   currentUserId: string;
+  isOwner: boolean;
 }) {
   const [inviteState, inviteAction, isInvitePending] = useActionState(
     inviteMemberAction,
     initialState,
   );
+  const [transferState, transferAction, isTransferPending] = useActionState(
+    transferOwnershipAction,
+    initialState,
+  );
+  const transferOptions = members
+    .filter((member) => member.id !== currentUserId && member.org_role !== "owner")
+    .map((member) => ({
+      value: member.id,
+      label: `${member.display_name} (${member.org_role})`,
+    }));
 
   return (
     <div className="space-y-6">
@@ -79,6 +92,36 @@ export function TeamManagement({
                 <Button disabled={isInvitePending}>
                   {isInvitePending ? "Sending…" : "Send invitation"}
                 </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {isOwner && transferOptions.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Transfer ownership</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form action={transferAction} className="grid gap-4 md:grid-cols-2">
+              <FormSelectField
+                id="userId"
+                name="userId"
+                label="New owner"
+                options={transferOptions}
+                defaultValue={transferOptions[0]?.value}
+              />
+              <div className="flex items-end">
+                <Button type="submit" variant="outline" disabled={isTransferPending}>
+                  {isTransferPending ? "Transferring…" : "Transfer ownership"}
+                </Button>
+              </div>
+              <div className="md:col-span-2">
+                <FormMessage
+                  error={transferState.error}
+                  success={transferState.success}
+                />
               </div>
             </form>
           </CardContent>

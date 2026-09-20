@@ -34,3 +34,15 @@ export function isOnboardingRoute(pathname: string) {
     pathname as (typeof onboardingRoutes)[number],
   );
 }
+
+export function isMfaAllowedRoute(pathname: string) {
+  return pathname === "/profile" || pathname.startsWith("/mfa/");
+}
+
+export function isStakeholderAllowedRoute(pathname: string) {
+  return (
+    pathname.startsWith("/incidents/") ||
+    pathname === "/profile" ||
+    pathname.startsWith("/mfa/")
+  );
+}

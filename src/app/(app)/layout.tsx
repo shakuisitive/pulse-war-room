@@ -32,6 +32,7 @@ export default async function AppLayout({
         userId: session.userId,
         displayName: session.profile.display_name,
         orgRole: session.profile.org_role,
+        isStakeholderOnly: session.profile.is_stakeholder_only,
       }}
       initialNotifications={notifications ?? []}
     >

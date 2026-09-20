@@ -21,6 +21,11 @@ export default async function ProfilePage({
         <p className="text-muted-foreground">
           Manage your display name, notifications, and MFA settings.
         </p>
+        {params.mfa === "required" ? (
+          <p className="mt-3 rounded-md border border-border bg-muted px-3 py-2 text-sm">
+            Your organization requires MFA. Enroll a TOTP authenticator below to continue.
+          </p>
+        ) : null}
       </div>
 
       <ProfileForm

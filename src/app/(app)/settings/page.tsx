@@ -26,7 +26,10 @@ export default async function SettingsPage() {
           Configure your org name, SLA thresholds, and security preferences.
         </p>
       </div>
-      <OrgSettingsForm initialValues={settings} />
+      <OrgSettingsForm
+        initialValues={settings}
+        isOwner={session.profile.org_role === "owner"}
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ export default async function TeamPage() {
     .from("profiles")
     .select("id, display_name, org_role, avatar_url, is_active, created_at")
     .eq("org_id", session!.organization.id)
+    .eq("is_stakeholder_only", false)
     .order("created_at", { ascending: true });
 
   return (
@@ -18,6 +19,7 @@ export default async function TeamPage() {
       members={members ?? []}
       canManage={isOrgAdmin(session!.profile.org_role)}
       currentUserId={session!.userId}
+      isOwner={session!.profile.org_role === "owner"}
     />
   );
 }
