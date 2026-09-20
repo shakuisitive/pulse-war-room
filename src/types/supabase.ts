@@ -857,6 +857,7 @@ export type Database = {
           display_name: string
           id: string
           is_active: boolean
+          is_stakeholder_only: boolean
           notification_preferences: Json
           org_id: string
           org_role: Database["public"]["Enums"]["org_role"]
@@ -868,6 +869,7 @@ export type Database = {
           display_name: string
           id: string
           is_active?: boolean
+          is_stakeholder_only?: boolean
           notification_preferences?: Json
           org_id: string
           org_role?: Database["public"]["Enums"]["org_role"]
@@ -879,6 +881,7 @@ export type Database = {
           display_name?: string
           id?: string
           is_active?: boolean
+          is_stakeholder_only?: boolean
           notification_preferences?: Json
           org_id?: string
           org_role?: Database["public"]["Enums"]["org_role"]
@@ -1252,6 +1255,14 @@ export type Database = {
         Returns: boolean
       }
       check_sla_breaches: { Args: never; Returns: number }
+      claim_email_jobs: {
+        Args: { p_batch_size?: number }
+        Returns: { msg_id: number; payload: Json }[]
+      }
+      complete_email_job: {
+        Args: { p_msg_id: number }
+        Returns: undefined
+      }
       claim_embedding_jobs: {
         Args: { p_batch_size?: number }
         Returns: {
@@ -1328,6 +1339,14 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      record_ai_summary: {
+        Args: {
+          p_content: string
+          p_incident_id: string
+          p_is_stakeholder_visible?: boolean
+        }
+        Returns: string
       }
       get_org_analytics: {
         Args: {
