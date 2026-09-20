@@ -22,6 +22,8 @@ type FormSelectProps = {
   name: string;
   options: SelectOption[];
   defaultValue?: string;
+  value?: string;
+  onValueChange?: (value: string) => void;
   placeholder?: string;
   required?: boolean;
   disabled?: boolean;
@@ -37,6 +39,8 @@ export function FormSelect({
   name,
   options,
   defaultValue,
+  value: controlledValue,
+  onValueChange,
   placeholder = "Select…",
   required,
   disabled,
@@ -45,8 +49,16 @@ export function FormSelect({
   size = "default",
   mapValueToForm = (value) => value,
 }: FormSelectProps) {
-  const [value, setValue] = useState(defaultValue ?? "");
+  const [uncontrolledValue, setUncontrolledValue] = useState(defaultValue ?? "");
+  const value = controlledValue ?? uncontrolledValue;
   const formValue = mapValueToForm(value);
+
+  function handleValueChange(next: string) {
+    if (controlledValue === undefined) {
+      setUncontrolledValue(next);
+    }
+    onValueChange?.(next);
+  }
 
   return (
     <div className={className}>
@@ -58,7 +70,7 @@ export function FormSelect({
       />
       <Select
         value={value || undefined}
-        onValueChange={setValue}
+        onValueChange={handleValueChange}
         disabled={disabled}
       >
         <SelectTrigger id={id} size={size} className={cn("w-full", triggerClassName)}>

@@ -81,6 +81,10 @@ export function WarRoomTasks({
                 value === UNASSIGNED_SELECT_VALUE ? "" : value
               }
             />
+            <div className="space-y-2">
+              <Label htmlFor="task-due">Due (optional)</Label>
+              <Input id="task-due" name="dueAt" type="datetime-local" />
+            </div>
             <FormMessage error={createState.error} success={createState.success} />
             <Button type="submit" size="sm" disabled={isCreatePending}>
               Add task
@@ -96,17 +100,29 @@ export function WarRoomTasks({
               const canUpdate =
                 isCommander ||
                 (canManageAssignedTasks && task.assignee_id === currentUserId);
+              const isOverdue =
+                Boolean(task.due_at) &&
+                task.status !== "completed" &&
+                new Date(task.due_at as string) < new Date();
 
               return (
                 <div
                   key={task.id}
-                  className="rounded-md border border-border p-3"
+                  className={
+                    isOverdue
+                      ? "rounded-md border border-destructive bg-destructive/10 p-3"
+                      : "rounded-md border border-border p-3"
+                  }
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-medium">{task.title}</p>
                       <p className="text-xs text-muted-foreground">
                         {task.assignee?.display_name ?? "Unassigned"}
+                        {task.due_at
+                          ? ` · due ${new Date(task.due_at).toLocaleString()}`
+                          : ""}
+                        {isOverdue ? " · overdue" : ""}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

@@ -90,6 +90,7 @@ export function WarRoom({
         slaThresholds={slaThresholds}
         isCommander={isCommander}
         isReadOnly={isReadOnly}
+        orgMembers={orgMembers}
       />
 
       <WarRoomPresence
@@ -120,12 +121,14 @@ export function WarRoom({
 
           <section className={mobilePanelClass(mobilePanel, "chat")}>
             <WarRoomChat
+              incidentId={incident.id}
               messages={chat.messages}
               isSending={chat.isSending}
               typingUsers={chat.typingUsers}
               sendMessage={chat.sendMessage}
               setTyping={chat.setTyping}
               canPost={canPostChat}
+              isCommander={isCommander && !isReadOnly}
             />
           </section>
 
@@ -148,13 +151,17 @@ export function WarRoom({
                 orgMembers={orgMembers}
                 isCommander={isCommander && !isReadOnly}
               />
-              <WarRoomAiPanel incidentId={incident.id} />
+              <WarRoomAiPanel
+                incidentId={incident.id}
+                canShare={isCommander && !isReadOnly}
+              />
               <SimilarIncidentsPanel incidentId={incident.id} />
               <WarRoomEvidence
                 incidentId={incident.id}
                 orgId={incident.org_id}
                 evidence={liveEvidence}
                 canUpload={canUploadEvidence}
+                isCommander={isCommander && !isReadOnly}
               />
             </div>
           </section>

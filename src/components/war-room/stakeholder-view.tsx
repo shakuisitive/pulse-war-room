@@ -11,14 +11,20 @@ type TimelineEntry =
     actor?: { display_name: string | null } | null;
   };
 
+type ChatMessage = Database["public"]["Tables"]["chat_messages"]["Row"] & {
+  sender?: { display_name: string | null } | null;
+};
+
 export function StakeholderView({
   incident,
   commanderName,
   timelineEntries,
+  chatMessages,
 }: {
   incident: Incident;
   commanderName: string | null;
   timelineEntries: TimelineEntry[];
+  chatMessages: ChatMessage[];
 }) {
   const visibleTimeline = timelineEntries.filter(
     (entry) => entry.is_stakeholder_visible,
@@ -58,6 +64,29 @@ export function StakeholderView({
                 <p className="mt-1 text-xs text-muted-foreground">
                   {entry.actor?.display_name ?? "System"} ·{" "}
                   {new Date(entry.created_at).toLocaleString()}
+                </p>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Commander updates</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {chatMessages.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No stakeholder-visible chat messages yet.
+            </p>
+          ) : (
+            chatMessages.map((message) => (
+              <div key={message.id} className="rounded-md border border-border p-3">
+                <p className="text-sm">{message.content}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {message.sender?.display_name ?? "Commander"} ·{" "}
+                  {new Date(message.created_at).toLocaleString()}
                 </p>
               </div>
             ))

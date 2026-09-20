@@ -21,6 +21,7 @@ type BroadcastPayload = {
   content: string;
   created_at: string;
   sender_display_name: string;
+  is_stakeholder_visible: boolean;
 };
 
 async function fetchMessages(incidentId: string) {
@@ -91,7 +92,7 @@ export function useWarRoomChat(
               org_id: "",
               sender_id: message.sender_id,
               content: message.content,
-              is_stakeholder_visible: false,
+              is_stakeholder_visible: message.is_stakeholder_visible,
               created_at: message.created_at,
               sender: { display_name: message.sender_display_name },
             },
@@ -127,9 +128,13 @@ export function useWarRoomChat(
   }, [incidentId, currentUser.userId, queryClient]);
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, isStakeholderVisible = false) => {
       setIsSending(true);
-      const result = await sendChatMessageAction(incidentId, content);
+      const result = await sendChatMessageAction(
+        incidentId,
+        content,
+        isStakeholderVisible,
+      );
       setIsSending(false);
 
       if (result.error) {
@@ -156,6 +161,7 @@ export function useWarRoomChat(
             content,
             created_at: data.created_at,
             sender_display_name: currentUser.displayName,
+            is_stakeholder_visible: isStakeholderVisible,
           } satisfies BroadcastPayload,
         });
       }

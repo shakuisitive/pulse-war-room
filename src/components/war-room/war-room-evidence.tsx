@@ -3,9 +3,13 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { UploadIcon } from "lucide-react";
 
-import { createEvidenceRecordAction } from "@/app/actions/incidents";
+import {
+  createEvidenceRecordAction,
+  updateEvidenceVisibilityAction,
+} from "@/app/actions/incidents";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
@@ -59,13 +63,16 @@ export function WarRoomEvidence({
   orgId,
   evidence,
   canUpload,
+  isCommander,
 }: {
   incidentId: string;
   orgId: string;
   evidence: Evidence[];
   canUpload: boolean;
+  isCommander: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
+  const [shareWithStakeholders, setShareWithStakeholders] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, startTransition] = useTransition();
 
@@ -94,6 +101,9 @@ export function WarRoomEvidence({
         formData.set("storagePath", storagePath);
         formData.set("fileType", file.type);
         formData.set("fileSize", String(file.size));
+        if (shareWithStakeholders) {
+          formData.set("isStakeholderVisible", "on");
+        }
 
         const result = await createEvidenceRecordAction({}, formData);
         if (result.error) {
@@ -101,7 +111,7 @@ export function WarRoomEvidence({
         }
       });
     },
-    [incidentId, orgId],
+    [incidentId, orgId, shareWithStakeholders],
   );
 
   const handleUpload = useCallback(
@@ -192,6 +202,20 @@ export function WarRoomEvidence({
                 onChange={handleUpload}
                 className="max-w-xs"
               />
+              {isCommander ? (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="evidence-visible"
+                    checked={shareWithStakeholders}
+                    onCheckedChange={(value) =>
+                      setShareWithStakeholders(value === true)
+                    }
+                  />
+                  <Label htmlFor="evidence-visible" className="font-normal">
+                    Visible to stakeholders
+                  </Label>
+                </div>
+              ) : null}
             </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             {isUploading ? (
@@ -219,16 +243,39 @@ export function WarRoomEvidence({
                   ) : null}
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{item.file_name}</p>
-                    <p className="text-xs text-muted-foreground">{item.file_type}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.file_type}
+                      {item.is_stakeholder_visible ? " · stakeholder visible" : ""}
+                    </p>
                   </div>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => openEvidence(item.storage_path, item.file_type)}
-                >
-                  View
-                </Button>
+                <div className="flex shrink-0 gap-2">
+                  {isCommander ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={isUploading}
+                      onClick={() => {
+                        startTransition(async () => {
+                          await updateEvidenceVisibilityAction(
+                            item.id,
+                            incidentId,
+                            !item.is_stakeholder_visible,
+                          );
+                        });
+                      }}
+                    >
+                      {item.is_stakeholder_visible ? "Make internal" : "Share"}
+                    </Button>
+                  ) : null}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openEvidence(item.storage_path, item.file_type)}
+                  >
+                    View
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

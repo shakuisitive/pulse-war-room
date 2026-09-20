@@ -81,6 +81,7 @@ export default async function IncidentPage({
       .select("id, display_name")
       .eq("org_id", session.organization.id)
       .eq("is_active", true)
+      .eq("is_stakeholder_only", false)
       .order("display_name"),
     incident.commander_id
       ? supabase
@@ -118,6 +119,9 @@ export default async function IncidentPage({
         incident={incident}
         commanderName={commanderResult.data?.display_name ?? null}
         timelineEntries={timelineResult.data ?? []}
+        chatMessages={(chatResult.data ?? []).filter(
+          (message) => message.is_stakeholder_visible,
+        )}
       />
     );
   }

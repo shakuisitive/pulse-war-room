@@ -2,11 +2,17 @@
 
 import { useState, useTransition } from "react";
 
-import { runAiIncidentAction } from "@/app/actions/ai";
+import { runAiIncidentAction, shareAiSummaryAction } from "@/app/actions/ai";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export function WarRoomAiPanel({ incidentId }: { incidentId: string }) {
+export function WarRoomAiPanel({
+  incidentId,
+  canShare,
+}: {
+  incidentId: string;
+  canShare: boolean;
+}) {
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -59,9 +65,28 @@ export function WarRoomAiPanel({ incidentId }: { incidentId: string }) {
         {isPending ? <p className="text-sm text-muted-foreground">Generating…</p> : null}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         {result ? (
-          <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-muted/30 p-3 text-sm">
-            {result}
-          </pre>
+          <div className="space-y-2">
+            <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-muted/30 p-3 text-sm">
+              {result}
+            </pre>
+            {canShare ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={isPending}
+                onClick={() => {
+                  startTransition(async () => {
+                    const response = await shareAiSummaryAction(incidentId, result);
+                    if (response.error) {
+                      setError(response.error);
+                    }
+                  });
+                }}
+              >
+                Share with stakeholders
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </CardContent>
     </Card>
