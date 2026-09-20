@@ -20,10 +20,21 @@ export const createOrganizationSchema = z.object({
     .max(80),
 });
 
+export const incidentMetadataFieldSchema = z.object({
+  key: z
+    .string()
+    .trim()
+    .min(1)
+    .max(40)
+    .regex(/^[a-z][a-z0-9_]*$/, "Use lowercase letters, numbers, and underscores"),
+  label: z.string().trim().min(1).max(80),
+});
+
 export const orgSettingsSchema = z.object({
   name: z.string().trim().min(2).max(100),
   slug: z.string().trim().toLowerCase().regex(slugRegex),
   requireMfa: z.boolean(),
+  incidentMetadataFields: z.array(incidentMetadataFieldSchema).max(12).optional(),
   slaThresholds: z.object({
     sev1: z.object({
       acknowledgeMinutes: z.number().int().positive(),
@@ -54,6 +65,14 @@ export const updateMemberRoleSchema = z.object({
   orgRole: z.enum(["admin", "member"]),
 });
 
+export const transferOwnershipSchema = z.object({
+  userId: z.uuid(),
+});
+
+export const deleteOrganizationSchema = z.object({
+  confirmSlug: z.string().trim().min(1),
+});
+
 export const profileSchema = z.object({
   displayName: z.string().trim().min(2).max(80),
   avatarUrl: z.union([z.url(), z.literal("")]).optional(),
@@ -70,6 +89,7 @@ export type ProfileInput = z.infer<typeof profileSchema>;
 
 export const defaultOrgSettings = {
   requireMfa: false,
+  incidentMetadataFields: [] as Array<{ key: string; label: string }>,
   slaThresholds: {
     sev1: { acknowledgeMinutes: 5, resolveMinutes: 60 },
     sev2: { acknowledgeMinutes: 15, resolveMinutes: 240 },

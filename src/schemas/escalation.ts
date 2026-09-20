@@ -6,6 +6,7 @@ export const updateEscalationPolicySchema = z.object({
   policyId: z.uuid(),
   acknowledgeThresholdMinutes: z.coerce.number().int().positive(),
   resolveThresholdMinutes: z.coerce.number().int().positive(),
+  autoEscalateSeverity: z.boolean(),
 });
 
 export const escalationPolicyFormSchema = z.object({

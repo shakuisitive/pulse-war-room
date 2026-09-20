@@ -8,3 +8,8 @@ export const aiIncidentActionSchema = z.object({
 export const semanticSearchSchema = z.object({
   query: z.string().trim().min(2).max(500),
 });
+
+export const suggestSeverityDraftSchema = z.object({
+  title: z.string().trim().min(3).max(200),
+  description: z.string().trim().max(5000).optional(),
+});

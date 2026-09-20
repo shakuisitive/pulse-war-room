@@ -19,6 +19,18 @@ export const declareIncidentSchema = z.object({
   title: z.string().trim().min(3, "Title must be at least 3 characters").max(200),
   description: z.string().trim().max(5000).optional(),
   severity: z.enum(severityLevels),
+  metadata: z.record(z.string(), z.string().trim().max(500)).optional(),
+});
+
+export const updateIncidentTitleSchema = z.object({
+  incidentId: z.uuid(),
+  title: z.string().trim().min(3, "Title must be at least 3 characters").max(200),
+  description: z.string().trim().max(5000).optional(),
+});
+
+export const reassignCommanderSchema = z.object({
+  incidentId: z.uuid(),
+  commanderId: z.uuid(),
 });
 
 export const updateIncidentStatusSchema = z.object({
@@ -52,6 +64,7 @@ export const createTaskSchema = z.object({
   title: z.string().trim().min(2, "Task title is required").max(200),
   description: z.string().trim().max(2000).optional(),
   assigneeId: z.uuid().optional().or(z.literal("")),
+  dueAt: z.string().optional().or(z.literal("")),
 });
 
 export const updateTaskSchema = z.object({
@@ -70,6 +83,13 @@ export const deleteTaskSchema = z.object({
 export const sendChatMessageSchema = z.object({
   incidentId: z.uuid(),
   content: z.string().trim().min(1, "Message cannot be empty").max(4000),
+  isStakeholderVisible: z.boolean().optional(),
+});
+
+export const updateVisibilitySchema = z.object({
+  id: z.uuid(),
+  incidentId: z.uuid(),
+  isStakeholderVisible: z.boolean(),
 });
 
 export const evidenceMetadataSchema = z.object({
@@ -79,6 +99,7 @@ export const evidenceMetadataSchema = z.object({
   fileType: z.string().trim().min(1),
   fileSize: z.number().int().positive(),
   caption: z.string().trim().max(500).optional(),
+  isStakeholderVisible: z.boolean().optional(),
 });
 
 export type DeclareIncidentInput = z.infer<typeof declareIncidentSchema>;
