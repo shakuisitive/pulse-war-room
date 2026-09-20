@@ -5,6 +5,7 @@ import { createServiceClient, createUserClient } from "../_shared/supabase.ts";
 type AiAction =
   | "summarize"
   | "suggest-severity"
+  | "suggest-severity-draft"
   | "post-mortem-draft"
   | "embed-query"
   | "semantic-search";
@@ -99,6 +100,29 @@ Deno.serve(async (req) => {
       }
 
       return jsonResponse({ results: data ?? [] });
+    }
+
+    if (action === "suggest-severity-draft") {
+      const title = typeof body.title === "string" ? body.title : "";
+      const description = typeof body.description === "string" ? body.description : "";
+
+      if (title.trim().length < 3) {
+        return jsonResponse({ error: "Title is required." }, 400);
+      }
+
+      const content = await openAiChat([
+        {
+          role: "system",
+          content:
+            "You suggest incident severity (sev1-sev4). Reply with JSON: {\"severity\":\"sev1|sev2|sev3|sev4\",\"reason\":\"...\"}",
+        },
+        {
+          role: "user",
+          content: `Title: ${title}\nDescription: ${description}`,
+        },
+      ]);
+
+      return jsonResponse({ result: content });
     }
 
     if (!incidentId) {

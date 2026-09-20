@@ -8,6 +8,7 @@ import { FormMessage } from "@/components/auth/form-message";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { FormCheckbox } from "@/components/ui/form-checkbox-field";
 import { NumberInput } from "@/components/ui/number-input";
 import type { Database } from "@/types/supabase";
 
@@ -26,7 +27,7 @@ export function EscalationManagement({
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Escalation policies</h1>
         <p className="text-muted-foreground">
-          SLA thresholds used by pg_cron to detect breaches and record escalation timeline events.
+          SLA thresholds used by pg_cron to detect breaches, auto-escalate severity, and notify the team.
         </p>
       </div>
 
@@ -73,6 +74,15 @@ function PolicyCard({ policy }: { policy: EscalationPolicy }) {
               required
             />
           </div>
+          <FormCheckbox
+            id={`auto-${policy.id}`}
+            name="autoEscalateSeverity"
+            label="Auto-escalate severity when resolution SLA is breached"
+            defaultChecked={
+              (policy.escalation_action as { autoEscalateSeverity?: boolean } | null)
+                ?.autoEscalateSeverity !== false
+            }
+          />
           <FormMessage error={state.error} success={state.success} />
           <Button type="submit" size="sm" disabled={isPending}>
             Save policy

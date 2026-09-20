@@ -5,6 +5,8 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -31,10 +33,24 @@ type AnalyticsData = {
   mttr: { avg_minutes?: number; p50?: number; p90?: number; p95?: number };
   mtta: { avg_minutes?: number; p50?: number; p90?: number };
   volumeBySeverity: Array<{ severity: string; count: number }>;
+  volumeOverTime: Array<{ day: string; count: number }>;
+  slaCompliance: { acknowledge_pct?: number; resolve_pct?: number };
   responderWorkload: Array<{
     user_id: string;
     display_name: string;
     incidents_commanded: number;
+  }>;
+  taskWorkload: Array<{
+    user_id: string;
+    display_name: string;
+    tasks_completed: number;
+  }>;
+  recurringIssues: Array<{
+    id: string;
+    title: string;
+    similar_id: string;
+    similar_title: string;
+    similarity: number;
   }>;
   actionItemCompletionRate: number;
   totalIncidents: number;
@@ -170,6 +186,14 @@ export function AnalyticsDashboard() {
               title="Action item completion"
               value={`${data.actionItemCompletionRate ?? 0}%`}
             />
+            <MetricCard
+              title="SLA ack compliance"
+              value={`${data.slaCompliance.acknowledge_pct ?? "—"}%`}
+            />
+            <MetricCard
+              title="SLA resolve compliance"
+              value={`${data.slaCompliance.resolve_pct ?? "—"}%`}
+            />
           </div>
 
           <Card>
@@ -191,6 +215,23 @@ export function AnalyticsDashboard() {
 
           <Card>
             <CardHeader>
+              <CardTitle>Incident volume over time</CardTitle>
+            </CardHeader>
+            <CardContent className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={data.volumeOverTime ?? []}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="day" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="count" stroke="var(--primary)" />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Responder workload</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -206,6 +247,54 @@ export function AnalyticsDashboard() {
                     <span className="text-muted-foreground">
                       {row.incidents_commanded} incidents commanded
                     </span>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Tasks completed per responder</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(data.taskWorkload ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground">No completed task data.</p>
+              ) : (
+                data.taskWorkload.map((row) => (
+                  <div
+                    key={row.user_id}
+                    className="flex items-center justify-between rounded-md border border-border p-3 text-sm"
+                  >
+                    <span>{row.display_name}</span>
+                    <span className="text-muted-foreground">
+                      {row.tasks_completed} tasks completed
+                    </span>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Recurring issues</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(data.recurringIssues ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No high-similarity resolved incidents yet. Embeddings must be processed first.
+                </p>
+              ) : (
+                data.recurringIssues.map((row) => (
+                  <div
+                    key={`${row.id}-${row.similar_id}`}
+                    className="rounded-md border border-border p-3 text-sm"
+                  >
+                    <p className="font-medium">{row.title}</p>
+                    <p className="text-muted-foreground">
+                      Similar to {row.similar_title} ({Math.round(row.similarity * 100)}%)
+                    </p>
                   </div>
                 ))
               )}

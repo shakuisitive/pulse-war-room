@@ -1,6 +1,7 @@
 import { Activity, ShieldCheck, Users } from "lucide-react";
 
 import { ActionItemsWidget } from "@/components/dashboard/action-items-widget";
+import { MyTasksWidget } from "@/components/dashboard/my-tasks-widget";
 import { DeclareIncidentDialog } from "@/components/dashboard/declare-incident-dialog";
 import { IncidentList } from "@/components/dashboard/incident-list";
 import { IncidentSearch } from "@/components/dashboard/incident-search";
@@ -30,11 +31,13 @@ export default async function DashboardPage() {
     { count: openIncidentCount },
     { data: incidents },
     { data: myActionItems },
+    { data: myTasks },
   ] = await Promise.all([
       supabase
         .from("profiles")
         .select("*", { count: "exact", head: true })
-        .eq("org_id", session!.organization.id),
+        .eq("org_id", session!.organization.id)
+        .eq("is_stakeholder_only", false),
       supabase
         .from("incidents")
         .select("*", { count: "exact", head: true })
@@ -46,13 +49,20 @@ export default async function DashboardPage() {
         .eq("org_id", session!.organization.id)
         .order("created_at", { ascending: false }),
       supabase.rpc("get_my_action_items", { p_include_completed: false }),
+      supabase
+        .from("tasks")
+        .select("id, title, status, due_at, incident_id")
+        .eq("org_id", session!.organization.id)
+        .eq("assignee_id", session!.userId)
+        .neq("status", "completed")
+        .order("due_at", { ascending: true }),
     ]);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <Badge variant="secondary">Milestone 4</Badge>
+          <Badge variant="secondary">Command center</Badge>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">
             Welcome back, {session!.profile.display_name}
           </h1>
@@ -60,7 +70,9 @@ export default async function DashboardPage() {
             Monitor active incidents and open war rooms in real time.
           </p>
         </div>
-        <DeclareIncidentDialog />
+        <DeclareIncidentDialog
+          metadataFields={settings.incidentMetadataFields}
+        />
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -100,7 +112,10 @@ export default async function DashboardPage() {
 
       <IncidentSearch />
 
-      <ActionItemsWidget items={myActionItems ?? []} />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ActionItemsWidget items={myActionItems ?? []} />
+        <MyTasksWidget tasks={myTasks ?? []} />
+      </div>
 
       <IncidentList
         orgId={session!.organization.id}

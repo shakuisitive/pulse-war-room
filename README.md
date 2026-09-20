@@ -60,6 +60,15 @@ supabase functions deploy process-jobs
 
 Set `OPENAI_API_KEY` in **Project Settings → Edge Functions → Secrets**.
 
+Embeddings and notification emails are processed by `process-jobs`. A pg_cron job calls it every minute when these database settings (or Vault secrets `project_url` / `service_role_key`) are present:
+
+```sql
+alter database postgres set app.settings.supabase_url = 'https://YOUR-PROJECT.supabase.co';
+alter database postgres set app.settings.service_role_key = 'YOUR_SERVICE_ROLE_KEY';
+```
+
+Optional SMTP for email notifications (Edge Function secrets): `SMTP_HOSTNAME`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM`.
+
 Trigger embedding/notification processing manually:
 
 ```bash
